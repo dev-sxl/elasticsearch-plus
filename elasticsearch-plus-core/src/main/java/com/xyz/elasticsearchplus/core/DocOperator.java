@@ -15,9 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.HttpEntity;
-import org.apache.http.entity.ContentType;
-import org.apache.http.nio.entity.NStringEntity;
 import org.apache.http.util.EntityUtils;
 import org.apache.lucene.search.join.ScoreMode;
 import org.elasticsearch.action.ActionListener;
@@ -34,10 +31,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.*;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.update.UpdateRequest;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.Response;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.*;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -133,7 +127,7 @@ public final class DocOperator {
         ids.forEach(id -> request.add(new MultiGetRequest.Item(docMetaData.getIndex(), docMetaData.getType(), id)));
 
         try {
-            MultiGetResponse response = highLevelClient().multiGet(request);
+            MultiGetResponse response = highLevelClient().mget(request, RequestOptions.DEFAULT);
 
             return Arrays.stream(response.getResponses())
                          .filter(f -> f.getResponse().isExists())
@@ -152,7 +146,7 @@ public final class DocOperator {
         searchRequest.source(sourceBuilder);
         SearchResponse response;
         try {
-            response = highLevelClient().search(searchRequest);
+            response = highLevelClient().search(searchRequest, RequestOptions.DEFAULT);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -197,9 +191,10 @@ public final class DocOperator {
     private static String queryByDsl(String dslJsonString,
                                      String endpoint) {
         RestClient restClient = highLevelClient().getLowLevelClient();
-        HttpEntity entity = new NStringEntity(dslJsonString, ContentType.APPLICATION_JSON);
         try {
-            Response response = restClient.performRequest("GET", endpoint, Collections.emptyMap(), entity);
+            Request request = new Request("GET", endpoint);
+            request.setJsonEntity(dslJsonString);
+            Response response = restClient.performRequest(request);
             log.info("method: ElasticBaseService.queryByDsl, param: statusCode= {}", response.getStatusLine().getStatusCode());
             return EntityUtils.toString(response.getEntity());
         } catch (IOException e) {
@@ -271,11 +266,11 @@ public final class DocOperator {
                 SearchRequest searchRequest = new SearchRequest(docMetaData.getIndex());
                 searchRequest.source(sourceBuilder);
                 searchRequest.scroll(scroll);
-                searchResponse = highLevelClient().search(searchRequest);
+                searchResponse = highLevelClient().search(searchRequest, RequestOptions.DEFAULT);
             } else {
                 // 有游标按游标进行查询
                 SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
-                searchResponse = highLevelClient().searchScroll(scrollRequest.scroll(scroll));
+                searchResponse = highLevelClient().scroll(scrollRequest.scroll(scroll), RequestOptions.DEFAULT);
             }
 
             // 处理返回结果
@@ -336,7 +331,7 @@ public final class DocOperator {
             // 进行clear scroll
             ClearScrollRequest clearScrollRequest = new ClearScrollRequest();
             clearScrollRequest.addScrollId(scrollId);
-            ClearScrollResponse clearScrollResponse = highLevelClient().clearScroll(clearScrollRequest);
+            ClearScrollResponse clearScrollResponse = highLevelClient().clearScroll(clearScrollRequest, RequestOptions.DEFAULT);
             if (!clearScrollResponse.isSucceeded()) {
                 log.error("clearScrollResponse error : {}", clearScrollResponse);
             }
@@ -377,12 +372,12 @@ public final class DocOperator {
             do {
                 searchRequest.source(sourceBuilder);
                 if (hitSize == 0) {
-                    searchResponse = highLevelClient().search(searchRequest);
+                    searchResponse = highLevelClient().search(searchRequest, RequestOptions.DEFAULT);
                     totalHits = searchResponse.getHits().getTotalHits();
                     resultList = getContainer(totalHits);
                 } else {
                     scrollRequest = new SearchScrollRequest(scrollId);
-                    searchResponse = highLevelClient().searchScroll(scrollRequest.scroll(scroll));
+                    searchResponse = highLevelClient().scroll(scrollRequest.scroll(scroll), RequestOptions.DEFAULT);
                 }
                 scrollId = searchResponse.getScrollId();
                 hitSize = searchResponse.getHits().getHits() == null ? 0 : searchResponse.getHits().getHits().length;
@@ -392,7 +387,7 @@ public final class DocOperator {
             } while (hitSize > 0);
             ClearScrollRequest clearScrollRequest = new ClearScrollRequest();
             clearScrollRequest.addScrollId(scrollId);
-            ClearScrollResponse clearScrollResponse = highLevelClient().clearScroll(clearScrollRequest);
+            ClearScrollResponse clearScrollResponse = highLevelClient().clearScroll(clearScrollRequest, RequestOptions.DEFAULT);
             clearScrollResponse.isSucceeded();
         } catch (Exception e) {
             log.error("scrollByParam scroll error, conditionBean:{}", sourceBuilder.toString(), e);
@@ -452,16 +447,17 @@ public final class DocOperator {
     public static <T> void bulkAsync(TimeValue timeout, Iterable<DocWriteRequest<?>> data) {
         BulkRequest request = new BulkRequest();
         request.timeout(timeout).add(data);
-        highLevelClient().bulkAsync(request, getListener());
+        highLevelClient().bulkAsync(request, RequestOptions.DEFAULT, getListener());
     }
 
     private static <T> void saveAsync(TimeValue timeout,
-                                      Supplier<DocWriteRequest> requestFunction) {
+                                      Supplier<DocWriteRequest<T>> requestFunction) {
         BulkRequest request = new BulkRequest().timeout(timeout).add(requestFunction.get());
-        highLevelClient().bulkAsync(request, getListener());
+        highLevelClient().bulkAsync(request, RequestOptions.DEFAULT, getListener());
     }
 
-    public static <T> List<DocWriteRequest<?>> buildDocWriteRequests(List<T> dataList, Function<T, DocWriteRequest<?>> requestFunction) {
+    public static <T> List<DocWriteRequest<?>> buildDocWriteRequests(List<T> dataList,
+                                                                     Function<T, DocWriteRequest<?>> requestFunction) {
         if (CollectionUtils.isEmpty(dataList)) {
             return Collections.emptyList();
         }
@@ -474,13 +470,11 @@ public final class DocOperator {
         bulk(dataList, count, timeout, (T doc) -> buildInsertRequest(docMetaData, doc));
     }
 
-    public static <T> void bulkUpdate(DocMetaData<T> docMetaData,
-                                      List<T> dataList, int count, TimeValue timeout) {
+    public static <T> void bulkUpdate(DocMetaData<T> docMetaData, List<T> dataList, int count, TimeValue timeout) {
         bulk(dataList, count, timeout, (T doc) -> buildUpdateRequest(docMetaData, doc));
     }
 
-    public static <T> void bulkDelete(DocMetaData<T> docMetaData,
-                                      List<String> ids, int count, TimeValue timeout) {
+    public static <T> void bulkDelete(DocMetaData<T> docMetaData, List<String> ids, int count, TimeValue timeout) {
         bulk(ids, count, timeout, (String id) -> buildDeleteRequest(docMetaData, id));
     }
 
@@ -494,16 +488,6 @@ public final class DocOperator {
 
     public static <T> void delete(DocMetaData<T> docMetaData, String id, TimeValue timeout) {
         commit(timeout, () -> buildDeleteRequest(docMetaData, id));
-    }
-
-    public static <T> void update(DocMetaData<T> docMetaData,
-                                  List<T> dataList, int count, TimeValue timeout) {
-        bulk(dataList, count, timeout, (T doc) -> buildUpdateRequest(docMetaData, doc));
-    }
-
-    public static <T> void delete(DocMetaData<T> docMetaData,
-                                  List<String> ids, int count, TimeValue timeout) {
-        bulk(ids, count, timeout, (String id) -> buildDeleteRequest(docMetaData, id));
     }
 
     public static <T> void bulk(List<T> dataList, int count, TimeValue timeout,
@@ -522,7 +506,7 @@ public final class DocOperator {
         //写入完成立即刷新
         request.setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
         try {
-            BulkResponse bulk = highLevelClient().bulk(request);
+            BulkResponse bulk = highLevelClient().bulk(request, RequestOptions.DEFAULT);
             log.info(JSON.toJSONString(bulk.status()));
         } catch (IOException e) {
             log.error("bulk error", e);
@@ -530,31 +514,31 @@ public final class DocOperator {
     }
 
     private static <T> void commit(TimeValue timeout,
-                                   Supplier<DocWriteRequest> writeRequestSupplier) {
+                                   Supplier<DocWriteRequest<T>> writeRequestSupplier) {
         commit(timeout, writeRequestSupplier.get());
     }
 
-    public static void commit(TimeValue timeout, DocWriteRequest data) {
+    public static <T> void commit(TimeValue timeout, DocWriteRequest<T> data) {
         BulkRequest request = new BulkRequest().timeout(timeout).add(data);
         try {
-            BulkResponse bulk = highLevelClient().bulk(request);
+            BulkResponse bulk = highLevelClient().bulk(request, RequestOptions.DEFAULT);
             log.info(JSON.toJSONString(bulk.status()));
         } catch (IOException e) {
             log.error("bulk error", e);
         }
     }
 
-    private static <T> DocWriteRequest buildDeleteRequest(DocMetaData<T> docMetaData, String id) {
+    private static <T> DeleteRequest buildDeleteRequest(DocMetaData<T> docMetaData, String id) {
         return new DeleteRequest(docMetaData.getIndex(), docMetaData.getType(), id);
     }
 
-    private static <T> DocWriteRequest buildUpdateRequest(DocMetaData<T> docMetaData, T doc) {
+    private static <T> UpdateRequest buildUpdateRequest(DocMetaData<T> docMetaData, T doc) {
         String source = JsonUtils.beanToJson(doc);
         String id = extractId(docMetaData, source);
         return new UpdateRequest(docMetaData.getIndex(), docMetaData.getType(), id).doc(source, XContentType.JSON);
     }
 
-    private static <T> DocWriteRequest buildInsertRequest(DocMetaData<T> docMetaData, T doc) {
+    private static <T> IndexRequest buildInsertRequest(DocMetaData<T> docMetaData, T doc) {
         String source = JsonUtils.beanToJson(doc);
         String id = extractId(docMetaData, source);
         if (StringUtils.isBlank(id)) {
@@ -690,7 +674,7 @@ public final class DocOperator {
     /**
      * 添加查询条件
      *
-     * @param filedDto  数据字段
+     * @param filedDto         数据字段
      * @param boolQueryBuilder 查询条件
      */
     private static void appendField(FiledDto filedDto, BoolQueryBuilder boolQueryBuilder, Object o) {

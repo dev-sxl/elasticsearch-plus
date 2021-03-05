@@ -11,9 +11,22 @@ import org.springframework.stereotype.Service;
 @Service
 public class TagBaseServiceImpl implements TagBaseService {
 
+    private final DocMetaData<TagBasePo> docMetaData = buildMetaData();
+
+    /**
+     * @return 文档元数据
+     */
+    private DocMetaData<TagBasePo> buildMetaData() {
+        return DocMetaData.<TagBasePo>builder().docType(TagBasePo.class)
+                                               .idField("id")
+                                               .index("tag_base")
+                                               .type("list")
+                                               .build();
+    }
+
     @Override
-    public DocMetaData<TagBasePo> docContext() {
-        return DocMetaData.<TagBasePo>builder().docType(TagBasePo.class).idField("id").index("tag_base").type("list").build();
+    public DocMetaData<TagBasePo> docMetaData() {
+        return docMetaData;
     }
 
 

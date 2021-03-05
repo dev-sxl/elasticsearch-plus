@@ -1,5 +1,6 @@
 package com.zyx.elasticsearchplus.sample.service;
 
+import com.google.common.collect.Lists;
 import com.xyz.elasticsearchplus.annotation.ElasticFiled;
 import com.xyz.elasticsearchplus.annotation.ElasticFiledSort;
 import com.xyz.elasticsearchplus.annotation.ElasticSourceField;
@@ -9,11 +10,11 @@ import com.zyx.elasticsearchplus.sample.ApplicationTests;
 import com.zyx.elasticsearchplus.sample.po.TagBasePo;
 import lombok.Data;
 import lombok.experimental.Accessors;
-import org.assertj.core.util.Lists;
 import org.elasticsearch.search.sort.SortOrder;
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.Resource;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,7 +43,7 @@ class TagBaseServiceImplTest extends ApplicationTests {
     @Test
     void listByParam() {
         TagSearchCondition condition = new TagSearchCondition();
-        condition.setCategory("竞对类");
+        condition.setCategory("测试");
         condition.setValid(1);
         List<TagBasePo> tagBasePos = tagBaseService.listByParam(condition);
         System.out.println("method: listByParam, param: tagBasePos= " + JsonUtils.beanToJson(tagBasePos));
@@ -54,6 +55,8 @@ class TagBaseServiceImplTest extends ApplicationTests {
 
     @Test
     void listByDsl() {
+        List<TagBasePo> basePos = tagBaseService.listByDsl("{\"size\":20,\"query\":{\"match_all\":{}}}");
+        System.out.println("method: listByDsl, param: basePos= " + JsonUtils.beanToJson(basePos));
     }
 
     @Test
@@ -66,6 +69,11 @@ class TagBaseServiceImplTest extends ApplicationTests {
 
     @Test
     void countByParam() {
+        TagSearchCondition condition = new TagSearchCondition();
+        condition.setCategory("测试");
+        condition.setValid(1);
+        Long count = tagBaseService.countByParam(condition);
+        System.out.println("count = " + count);
     }
 
     @Test
@@ -89,11 +97,74 @@ class TagBaseServiceImplTest extends ApplicationTests {
     }
 
     @Test
-    void saveAsync() {
+    void saveAsync() throws InterruptedException {
+        TagBasePo basePo = new TagBasePo();
+        basePo.setCategory("测试");
+        basePo.setLevel1("测试1");
+        basePo.setLevel2("测试2");
+        basePo.setSearchKeywords("测试测试");
+        basePo.setIkSearchKeywords("测试测试");
+        basePo.setMatchDsl("");
+        basePo.setId("1");
+        basePo.setCreateTime(new Date());
+        basePo.setUpdateTime(new Date());
+        basePo.setValid(1);
+
+        tagBaseService.saveAsync(basePo);
+        Thread.sleep(5000);
     }
 
     @Test
-    void updateBatchAsync() {
+    void save() {
+        TagBasePo basePo = new TagBasePo();
+        basePo.setCategory("测试");
+        basePo.setLevel1("测试1");
+        basePo.setLevel2("测试2");
+        basePo.setSearchKeywords("测试测试");
+        basePo.setIkSearchKeywords("测试测试");
+        basePo.setMatchDsl("");
+        basePo.setId("1");
+        basePo.setCreateTime(new Date());
+        basePo.setUpdateTime(new Date());
+        basePo.setValid(1);
+
+        tagBaseService.save(basePo);
+    }
+
+    @Test
+    void updateBatchAsync() throws InterruptedException {
+        TagBasePo basePo = new TagBasePo();
+        basePo.setCategory("测试");
+        basePo.setLevel1("测试异步批量更新");
+        basePo.setLevel2("测试2");
+        basePo.setSearchKeywords("测试测试");
+        basePo.setIkSearchKeywords("测试测试");
+        basePo.setMatchDsl("");
+        basePo.setId("1");
+        basePo.setCreateTime(new Date());
+        basePo.setUpdateTime(new Date());
+        basePo.setValid(1);
+
+        tagBaseService.updateBatchAsync(Lists.newArrayList(basePo));
+        Thread.sleep(5000);
+    }
+
+    @Test
+    void updateAsync() throws InterruptedException {
+        TagBasePo basePo = new TagBasePo();
+        basePo.setCategory("测试");
+        basePo.setLevel1("测试异步");
+        basePo.setLevel2("测试2");
+        basePo.setSearchKeywords("测试测试");
+        basePo.setIkSearchKeywords("测试测试");
+        basePo.setMatchDsl("");
+        basePo.setId("1");
+        basePo.setCreateTime(new Date());
+        basePo.setUpdateTime(new Date());
+        basePo.setValid(1);
+
+        tagBaseService.updateAsync(basePo);
+        Thread.sleep(5000);
     }
 
     @Test
@@ -102,6 +173,33 @@ class TagBaseServiceImplTest extends ApplicationTests {
 
     @Test
     void saveBatch() {
+
+        TagBasePo basePo = new TagBasePo();
+        basePo.setCategory("测试");
+        basePo.setLevel1("测试批量插入1");
+        basePo.setLevel2("测试2");
+        basePo.setSearchKeywords("测试测试");
+        basePo.setIkSearchKeywords("测试测试");
+        basePo.setMatchDsl("");
+        basePo.setId("2");
+        basePo.setCreateTime(new Date());
+        basePo.setUpdateTime(new Date());
+        basePo.setValid(1);
+
+        TagBasePo basePo1 = new TagBasePo();
+        basePo1.setCategory("测试");
+        basePo1.setLevel1("测试批量插入2");
+        basePo1.setLevel2("测试2");
+        basePo1.setSearchKeywords("测试测试");
+        basePo1.setIkSearchKeywords("测试测试");
+        basePo1.setMatchDsl("");
+        basePo1.setId("3");
+        basePo1.setCreateTime(new Date());
+        basePo1.setUpdateTime(new Date());
+        basePo1.setValid(1);
+
+        tagBaseService.saveBatch(Lists.newArrayList(basePo1,basePo));
+
     }
 
     @Test
@@ -110,10 +208,13 @@ class TagBaseServiceImplTest extends ApplicationTests {
 
     @Test
     void deleteBatch() {
+        tagBaseService.deleteBatch(Lists.newArrayList("1", "2", "3"));
+        countByParam();
     }
 
     @Test
-    void docContext() {
+    void delete() {
+        tagBaseService.delete("1");
     }
 
     /**
