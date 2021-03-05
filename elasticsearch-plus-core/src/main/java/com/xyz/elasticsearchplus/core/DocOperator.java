@@ -5,14 +5,16 @@ import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Lists;
-import com.xyz.elasticsearchplus.annotation.ElasticFiled;
-import com.xyz.elasticsearchplus.annotation.ElasticFiledSort;
-import com.xyz.elasticsearchplus.annotation.ElasticNested;
-import com.xyz.elasticsearchplus.annotation.ElasticSourceField;
+import com.xyz.elasticsearchplus.annotation.FieldSource;
+import com.xyz.elasticsearchplus.annotation.FiledSearch;
+import com.xyz.elasticsearchplus.annotation.FiledSort;
+import com.xyz.elasticsearchplus.annotation.NestedSearch;
 import com.xyz.elasticsearchplus.core.bean.*;
+import com.xyz.utils.BeanUtils;
 import com.xyz.utils.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.util.EntityUtils;
@@ -44,6 +46,7 @@ import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.GeoDistanceSortBuilder;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.function.Function;
@@ -63,12 +66,7 @@ public final class DocOperator {
     /**
      * 一次获取数据量
      */
-    public static final int LIMIT = 1000;
-
-    /**
-     * 批次提交数据
-     */
-    private static final int BULK_LIMIT = 1000;
+    private static final int LIMIT = 1000;
 
     private static RestHighLevelClient highLevelClient;
 
@@ -139,8 +137,7 @@ public final class DocOperator {
         }
     }
 
-    public static <T> SearchResponse doSearch(DocMetaData<T> docMetaData,
-                                              SearchSourceBuilder sourceBuilder) {
+    public static <T> SearchResponse doSearch(DocMetaData<T> docMetaData, SearchSourceBuilder sourceBuilder) {
         SearchRequest searchRequest = new SearchRequest(docMetaData.getIndex());
         searchRequest.types(docMetaData.getType());
         searchRequest.source(sourceBuilder);
@@ -172,8 +169,7 @@ public final class DocOperator {
         return hitSourcesFromResult(docMetaData, responseStr);
     }
 
-    public static <T> PageResult<T> pageByDsl(DocMetaData<T> docMetaData,
-                                              String dslJsonString, PageParam pageSearchDto) {
+    public static <T> PageResult<T> pageByDsl(DocMetaData<T> docMetaData, String dslJsonString, PageParam pageSearchDto) {
 
         JSONObject jsonObject = JsonUtils.jsonToBean(dslJsonString, JSONObject.class);
         jsonObject.put("from", pageSearchDto.getPageSize() * (pageSearchDto.getPageNo() - 1));
@@ -188,8 +184,7 @@ public final class DocOperator {
         return JsonUtils.extraListByPath(responseStr, "$.hits.hits[*]._source", docMetaData.getDocType());
     }
 
-    private static String queryByDsl(String dslJsonString,
-                                     String endpoint) {
+    private static String queryByDsl(String dslJsonString, String endpoint) {
         RestClient restClient = highLevelClient().getLowLevelClient();
         try {
             Request request = new Request("GET", endpoint);
@@ -210,8 +205,7 @@ public final class DocOperator {
      * @param conditionBean 查询参数
      * @return 返回结果
      */
-    public static <T> List<T> searchByParam(DocMetaData<T> docMetaData,
-                                            Object conditionBean, int size) {
+    public static <T> List<T> searchByParam(DocMetaData<T> docMetaData, Object conditionBean, int size) {
         SearchResponse response = doSearchByCondition(docMetaData, conditionBean, size);
         return getDataByHits(response.getHits(), docMetaData.getDocType());
     }
@@ -230,8 +224,7 @@ public final class DocOperator {
      * @param conditionBean 查询参数
      * @return 返回结果
      */
-    public static <T> List<T> searchByParam(DocMetaData<T> docMetaData,
-                                            Object conditionBean) {
+    public static <T> List<T> searchByParam(DocMetaData<T> docMetaData, Object conditionBean) {
         return searchByParam(docMetaData, conditionBean, LIMIT);
     }
 
@@ -245,8 +238,7 @@ public final class DocOperator {
         return doSearchByCondition(docMetaData, conditionBean, 0).getHits().totalHits;
     }
 
-    public <T> List<T> scrollByParam(DocMetaData<T> docMetaData,
-                                     Object conditionBean, TimeValue timeValue) {
+    public <T> List<T> scrollByParam(DocMetaData<T> docMetaData, Object conditionBean, TimeValue timeValue) {
         return scrollByParam(docMetaData, conditionBean, timeValue, LIMIT);
     }
 
@@ -294,8 +286,7 @@ public final class DocOperator {
         }
     }
 
-    public static <T> List<T> scrollByDsl(DocMetaData<T> docMetaData,
-                                          String dslJsonString, String scrollId, int size) {
+    public static <T> List<T> scrollByDsl(DocMetaData<T> docMetaData, String dslJsonString, String scrollId, int size) {
         String scrollContextKeepAliveTime = "3m";
         String respStr;
         if (StringUtils.isBlank(scrollId)) {
@@ -349,15 +340,14 @@ public final class DocOperator {
      * @param size          批次数量
      * @return 数据
      */
-    public static <T> List<T> scrollByParam(DocMetaData<T> docMetaData,
-                                            Object conditionBean, TimeValue timeValue, int size) {
+    public static <T> List<T> scrollByParam(DocMetaData<T> docMetaData, Object conditionBean, TimeValue timeValue, int size) {
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
         builderParam(sourceBuilder, conditionBean);
         return scrollBySearchSourceBuilder(docMetaData, sourceBuilder, timeValue, size);
     }
 
-    public static <T> List<T> scrollBySearchSourceBuilder(DocMetaData<T> docMetaData,
-                                                          SearchSourceBuilder sourceBuilder, TimeValue timeValue, int size) {
+    public static <T> List<T> scrollBySearchSourceBuilder(DocMetaData<T> docMetaData, SearchSourceBuilder sourceBuilder,
+                                                          TimeValue timeValue, int size) {
         sourceBuilder.size(size);
         String scrollId = null;
         long hitSize = 0;
@@ -404,13 +394,11 @@ public final class DocOperator {
         }
     }
 
-    public static <T> void insertAsync(DocMetaData<T> docMetaData,
-                                       T data, TimeValue timeout) {
+    public static <T> void insertAsync(DocMetaData<T> docMetaData, T data, TimeValue timeout) {
         saveAsync(timeout, () -> buildInsertRequest(docMetaData, data));
     }
 
-    public static <T> void updateAsync(DocMetaData<T> docMetaData,
-                                       T data, TimeValue timeout) {
+    public static <T> void updateAsync(DocMetaData<T> docMetaData, T data, TimeValue timeout) {
         saveAsync(timeout, () -> buildUpdateRequest(docMetaData, data));
     }
 
@@ -425,19 +413,17 @@ public final class DocOperator {
         bulkAsync(count, timeout, dataList, (T doc) -> buildInsertRequest(docMetaData, doc));
     }
 
-    public static <T> void bulkUpdateAsync(DocMetaData<T> docMetaData,
-                                           List<T> dataList, int count, TimeValue timeout) {
+    public static <T> void bulkUpdateAsync(DocMetaData<T> docMetaData, List<T> dataList, int count, TimeValue timeout) {
         bulkAsync(count, timeout, dataList, (T doc) -> buildUpdateRequest(docMetaData, doc));
     }
 
-    public static <T> void bulkDeleteAsync(DocMetaData<T> docMetaData,
-                                           List<String> ids, int count, TimeValue timeout) {
+    public static <T> void bulkDeleteAsync(DocMetaData<T> docMetaData, List<String> ids, int count, TimeValue timeout) {
         bulkAsync(count, timeout, ids, (String id) -> buildDeleteRequest(docMetaData, id));
     }
 
     public static <T> void bulkAsync(int count, TimeValue timeout, List<T> dataList,
                                      Function<T, DocWriteRequest<?>> requestFunction) {
-        List<DocWriteRequest<?>> actionList = buildDocWriteRequests(dataList, requestFunction);
+        List<DocWriteRequest<?>> actionList = buildWriteRequests(dataList, requestFunction);
         if (CollectionUtils.isEmpty(actionList)) {
             return;
         }
@@ -450,14 +436,13 @@ public final class DocOperator {
         highLevelClient().bulkAsync(request, RequestOptions.DEFAULT, getListener());
     }
 
-    private static <T> void saveAsync(TimeValue timeout,
-                                      Supplier<DocWriteRequest<T>> requestFunction) {
+    private static <T> void saveAsync(TimeValue timeout, Supplier<DocWriteRequest<T>> requestFunction) {
         BulkRequest request = new BulkRequest().timeout(timeout).add(requestFunction.get());
         highLevelClient().bulkAsync(request, RequestOptions.DEFAULT, getListener());
     }
 
-    public static <T> List<DocWriteRequest<?>> buildDocWriteRequests(List<T> dataList,
-                                                                     Function<T, DocWriteRequest<?>> requestFunction) {
+    public static <T> List<DocWriteRequest<?>> buildWriteRequests(List<T> dataList,
+                                                                  Function<T, DocWriteRequest<?>> requestFunction) {
         if (CollectionUtils.isEmpty(dataList)) {
             return Collections.emptyList();
         }
@@ -490,13 +475,12 @@ public final class DocOperator {
         commit(timeout, () -> buildDeleteRequest(docMetaData, id));
     }
 
-    public static <T> void bulk(List<T> dataList, int count, TimeValue timeout,
-                                Function<T, DocWriteRequest<?>> requestFunction) {
+    public static <T> void bulk(List<T> dataList, int count, TimeValue timeout, Function<T, DocWriteRequest<?>> requestFunction) {
         if (CollectionUtils.isEmpty(dataList)) {
             return;
         }
 
-        List<DocWriteRequest<?>> actionList = buildDocWriteRequests(dataList, requestFunction);
+        List<DocWriteRequest<?>> actionList = buildWriteRequests(dataList, requestFunction);
         Lists.partition(actionList, count).forEach(data -> bulk(timeout, data));
     }
 
@@ -513,8 +497,7 @@ public final class DocOperator {
         }
     }
 
-    private static <T> void commit(TimeValue timeout,
-                                   Supplier<DocWriteRequest<T>> writeRequestSupplier) {
+    private static <T> void commit(TimeValue timeout, Supplier<DocWriteRequest<T>> writeRequestSupplier) {
         commit(timeout, writeRequestSupplier.get());
     }
 
@@ -571,8 +554,7 @@ public final class DocOperator {
      * @param o 查询参数
      * @return 返回结果
      */
-    public static <T> PageResult<T> pageByParam(DocMetaData<T> docMetaData,
-                                                Object o, PageParam pageSearchDto) {
+    public static <T> PageResult<T> pageByParam(DocMetaData<T> docMetaData, Object o, PageParam pageSearchDto) {
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
         sourceBuilder.from((pageSearchDto.getPageNo() - 1) * pageSearchDto.getPageSize());
         sourceBuilder.size(pageSearchDto.getPageSize());
@@ -586,8 +568,7 @@ public final class DocOperator {
      * @param sourceBuilder SearchSourceBuilder
      * @return List<T>
      */
-    public static <T> PageResult<T> pageByParam(DocMetaData<T> docMetaData,
-                                                SearchSourceBuilder sourceBuilder) {
+    public static <T> PageResult<T> pageByParam(DocMetaData<T> docMetaData, SearchSourceBuilder sourceBuilder) {
         SearchResponse response = doSearch(docMetaData, sourceBuilder);
         long totalHits = response.getHits().totalHits;
         List<T> dataList = getDataByHits(response.getHits(), docMetaData.getDocType());
@@ -596,9 +577,10 @@ public final class DocOperator {
 
     private static void appendSort(SearchSourceBuilder sourceBuilder, FiledSortDto sortDto) {
         if (sortDto.getType() == GeoDistanceSortBuilder.class) {
-            sourceBuilder.sort(new GeoDistanceSortBuilder(sortDto.getFieldName(),
-                    new GeoPoint(sortDto.getValue().toString())).
-                                                                        order(sortDto.getOrderBy()).unit(sortDto.getUnit()));
+            GeoPoint geoPoint = new GeoPoint(sortDto.getValue().toString());
+            GeoDistanceSortBuilder sortBuilder = new GeoDistanceSortBuilder(sortDto.getFieldName(), geoPoint).order(sortDto.getOrderBy())
+                                                                                                             .unit(sortDto.getUnit());
+            sourceBuilder.sort(sortBuilder);
         } else if (sortDto.getType() == FieldSortBuilder.class) {
             sourceBuilder.sort(new FieldSortBuilder(sortDto.getFieldName()).order(sortDto.getOrderBy()));
         }
@@ -616,59 +598,121 @@ public final class DocOperator {
         build(sourceBuilder, o, boolQueryBuilder, StringUtils.EMPTY);
     }
 
-    private static void build(SearchSourceBuilder sourceBuilder, Object o, BoolQueryBuilder boolQueryBuilder, String path) {
-        Map dataMap = new ObjectMapper().convertValue(o, Map.class);
-        FiledDto filedDto;
-        ElasticFiled fieldAnnotation;
-        ElasticNested nestedAnnotation;
-        ElasticFiledSort sortAnnotation;
-        FiledSortDto sortDto;
-        for (Field field : o.getClass().getDeclaredFields()) {
-            if (dataMap.containsKey(field.getName()) && dataMap.get(field.getName()) != null) {
-                if (field.getType() == List.class && CollectionUtils.isEmpty((List) dataMap.get(field.getName()))) {
-                    // 空list跳过
-                    continue;
-                }
-                if (field.getAnnotation(ElasticFiled.class) != null) {
-                    fieldAnnotation = field.getAnnotation(ElasticFiled.class);
-                    filedDto = new FiledDto(field.getType(), fieldAnnotation.model(), fieldAnnotation.method(),
-                            fieldAnnotation.matchOperator(), fieldAnnotation.multiMatchType(),
-                            fieldAnnotation.key(), field.getName(), dataMap.get(field.getName()), fieldAnnotation.combined(),
-                            fieldAnnotation.exists(), path,
-                            field.getDeclaringClass());
-                    appendField(filedDto, boolQueryBuilder
-                            , fieldAnnotation.combined() ? JSON.parseObject(JSON.toJSONString(dataMap.get(field.getName())),
-                                    field.getType()) : dataMap.get(field.getName()));
-                } else if (field.getAnnotation(ElasticNested.class) != null) {
-                    nestedAnnotation = field.getAnnotation(ElasticNested.class);
-                    filedDto = new FiledDto();
-                    filedDto.setPath(StringUtils.isNotBlank(nestedAnnotation.path()) ? path :
-                            CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, field.getName()));
-                    filedDto.setType(ElasticNested.class);
-                    filedDto.setCombined(true);
-                    filedDto.setFieldName(field.getName());
-                    filedDto.setMethod(nestedAnnotation.method());
-                    appendField(filedDto, boolQueryBuilder
-                            , JSON.parseObject(JSON.toJSONString(dataMap.get(field.getName())), field.getType()));
-                } else if (field.getAnnotation(ElasticFiledSort.class) != null) {
-                    sortAnnotation = field.getAnnotation(ElasticFiledSort.class);
-                    sortDto = new FiledSortDto(sortAnnotation.type(), sortAnnotation.orderBy(),
-                            sortAnnotation.fieldName(), sortAnnotation.unit(), dataMap.get(field.getName()));
-                    appendSort(sourceBuilder, sortDto);
-                } else if (field.getAnnotation(ElasticSourceField.class) != null) {
-                    @SuppressWarnings("unchecked")
-                    List<String> list = (List<String>) dataMap.get(field.getName());
-                    if (CollectionUtils.isNotEmpty(list)) {
-                        String[] temps = new String[list.size()];
-                        if (field.getAnnotation(ElasticSourceField.class).type() == ElasticSourceField.SourceType.EXCLUDE) {
-                            sourceBuilder.fetchSource(null, list.toArray(temps));
-                        } else {
-                            sourceBuilder.fetchSource(list.toArray(temps), null);
-                        }
-                    }
-                }
+    private static void build(SearchSourceBuilder sourceBuilder, Object conditionBean, BoolQueryBuilder boolQueryBuilder, String path) {
+        Map<String, Object> conditionMap = BeanUtils.beanToMap(conditionBean);
+        for (Field field : conditionBean.getClass().getDeclaredFields()) {
+            if (valueIsEmpty(conditionMap.get(field.getName()))) {
+                // 空集合,数组,对象都跳过
+                continue;
+            }
+
+            if (field.getAnnotation(FiledSearch.class) != null) {
+                filedSearchBuild(boolQueryBuilder, path, conditionMap, field);
+                continue;
+            }
+
+            if (field.getAnnotation(NestedSearch.class) != null) {
+                nestedSearchBuild(boolQueryBuilder, path, conditionMap, field);
+                continue;
+            }
+
+            if (field.getAnnotation(FiledSort.class) != null) {
+                filedSortBuild(sourceBuilder, conditionMap, field);
+                continue;
+            }
+
+            if (field.getAnnotation(FieldSource.class) != null) {
+                sourceFiledBuild(sourceBuilder, conditionMap, field);
             }
         }
+    }
+
+    public static boolean valueIsEmpty(final Object object) {
+        if (object == null) {
+            return true;
+        }
+        if (object instanceof Collection<?>) {
+            return ((Collection<?>) object).isEmpty();
+        }
+        if (object instanceof Iterable<?>) {
+            return IterableUtils.isEmpty((Iterable<?>) object);
+        }
+        if (object instanceof Map<?, ?>) {
+            return ((Map<?, ?>) object).isEmpty();
+        }
+        if (object instanceof Object[]) {
+            return ((Object[]) object).length == 0;
+        }
+
+        if (object instanceof Iterator<?>) {
+            return !((Iterator<?>) object).hasNext();
+        }
+
+        if (object instanceof Enumeration<?>) {
+            return !((Enumeration<?>) object).hasMoreElements();
+        }
+
+        try {
+            return Array.getLength(object) == 0;
+        } catch (final IllegalArgumentException ex) {
+            return false;
+        }
+    }
+
+    private static void sourceFiledBuild(SearchSourceBuilder sourceBuilder, Map<String, Object> conditionMap, Field field) {
+        @SuppressWarnings("unchecked")
+        List<String> list = (List<String>) conditionMap.get(field.getName());
+        if (CollectionUtils.isNotEmpty(list)) {
+            String[] temps = new String[list.size()];
+            if (field.getAnnotation(FieldSource.class).type() == FieldSource.SourceType.EXCLUDE) {
+                sourceBuilder.fetchSource(null, list.toArray(temps));
+            } else {
+                sourceBuilder.fetchSource(list.toArray(temps), null);
+            }
+        }
+    }
+
+    private static void filedSortBuild(SearchSourceBuilder sourceBuilder, Map<String, Object> dataMap, Field field) {
+        FiledSort sortAnnotation;
+        FiledSortDto sortDto;
+        sortAnnotation = field.getAnnotation(FiledSort.class);
+        sortDto = new FiledSortDto(sortAnnotation.type(), sortAnnotation.orderBy(),
+                sortAnnotation.fieldName(), sortAnnotation.unit(), dataMap.get(field.getName()));
+        appendSort(sourceBuilder, sortDto);
+    }
+
+    private static void nestedSearchBuild(BoolQueryBuilder boolQueryBuilder, String path, Map<String, Object> dataMap, Field field) {
+        NestedSearch nestedAnnotation;
+        nestedAnnotation = field.getAnnotation(NestedSearch.class);
+        FiledDto filedDto = nestedSearchFiledDto(path, nestedAnnotation, field);
+        appendField(filedDto, boolQueryBuilder, JSON.parseObject(JSON.toJSONString(dataMap.get(field.getName())), field.getType()));
+    }
+
+    private static FiledDto nestedSearchFiledDto(String path, NestedSearch nestedAnnotation, Field field) {
+        FiledDto filedDto = new FiledDto();
+        filedDto.setPath(StringUtils.isNotBlank(nestedAnnotation.path()) ? path :
+                CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, field.getName()));
+        filedDto.setType(NestedSearch.class);
+        filedDto.setCombined(true);
+        filedDto.setFieldName(field.getName());
+        filedDto.setMethod(nestedAnnotation.method());
+        return filedDto;
+    }
+
+    private static void filedSearchBuild(BoolQueryBuilder boolQueryBuilder, String path, Map<String, Object> conditionMap, Field field) {
+        FiledSearch fieldAnnotation;
+        fieldAnnotation = field.getAnnotation(FiledSearch.class);
+        FiledDto filedDto = filedSearchFiledDto(path, conditionMap, fieldAnnotation, field);
+        Object o1 = fieldAnnotation.combined() ?
+                JSON.parseObject(JSON.toJSONString(conditionMap.get(field.getName())), field.getType()) : conditionMap.get(field.getName());
+        appendField(filedDto, boolQueryBuilder, o1);
+    }
+
+    private static FiledDto filedSearchFiledDto(String path, Map dataMap, FiledSearch fieldAnnotation, Field field) {
+        return new FiledDto(field.getType(), fieldAnnotation.model(), fieldAnnotation.method(),
+                fieldAnnotation.matchOperator(), fieldAnnotation.multiMatchType(),
+                fieldAnnotation.key(), field.getName(), dataMap.get(field.getName()), fieldAnnotation.combined(),
+                fieldAnnotation.exists(), path, field.getDeclaringClass());
     }
 
     /**
@@ -679,7 +723,7 @@ public final class DocOperator {
      */
     private static void appendField(FiledDto filedDto, BoolQueryBuilder boolQueryBuilder, Object o) {
         QueryBuilder queryBuilder;
-        if (StringUtils.isNotBlank(filedDto.getPath()) && filedDto.getType().equals(ElasticNested.class)) {
+        if (StringUtils.isNotBlank(filedDto.getPath()) && filedDto.getType().equals(NestedSearch.class)) {
             queryBuilder = new NestedQueryBuilder(filedDto.getPath(), getQueryBuilder(filedDto, o), ScoreMode.None);
         } else {
             queryBuilder = getQueryBuilder(filedDto, o);
@@ -705,75 +749,103 @@ public final class DocOperator {
     }
 
     private static QueryBuilder getQueryBuilder(FiledDto dto, Object o) {
-        String field = (StringUtils.isNotBlank(dto.getKey()) ? dto.getKey()
-                : CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, dto.getFieldName()));
-        if (StringUtils.isNotBlank(dto.getPath())) {
-            field = dto.getPath() + "." + field;
-        }
+        String field = dto.queryField();
+
         if (dto.getType() == String.class) {
             return matchModelHandle(dto, field);
-        } else if (BooleanUtils.isTrue(dto.isCombined())) {
+        }
+
+        if (BooleanUtils.isTrue(dto.isCombined())) {
             BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
             if (dto.getType() == List.class) {
                 ((List) dto.getValue()).forEach(data -> {
                     BoolQueryBuilder subQuery = QueryBuilders.boolQuery();
-                    build(null
-                            , JSON.parseObject(JSON.toJSONString(data), dto.getSubType()), subQuery, dto.getPath());
-                    appendBuilder(new FiledDto(ElasticFiled.Method.SHOULD), boolQuery, subQuery);
+                    build(null, JSON.parseObject(JSON.toJSONString(data), dto.getSubType()), subQuery, dto.getPath());
+                    appendBuilder(new FiledDto(FiledSearch.Method.SHOULD), boolQuery, subQuery);
                 });
             } else {
                 build(null, o, boolQuery, dto.getPath());
             }
             return boolQuery;
-        } else if (dto.getType() == List.class) {
+        }
+
+        if (dto.getType() == List.class) {
             return QueryBuilders.termsQuery(field, (List) dto.getValue());
-        } else if (dto.getType() == GeoLocation.class) {
+        }
+
+        if (dto.getType() == GeoLocation.class) {
             GeoLocation geoLocation = new ObjectMapper().convertValue(dto.getValue(), GeoLocation.class);
             return QueryBuilders.geoDistanceQuery(field).
                     distance(geoLocation.getDistance()).point(new GeoPoint(geoLocation.getLocation()));
-        } else if (dto.getType() == GeoBoundingBox.class) {
+        }
+
+        if (dto.getType() == GeoBoundingBox.class) {
             GeoBoundingBox box = new ObjectMapper().convertValue(dto.getValue(), GeoBoundingBox.class);
             return QueryBuilders.geoBoundingBoxQuery(field).setCorners(new GeoPoint(box.getTopLeftPoint()),
                     new GeoPoint(box.getBottomRightPoint()));
-        } else if (dto.getType() == RangeQuery.class) {
-            RangeQuery rangeQuery = new ObjectMapper().convertValue(dto.getValue(), RangeQuery.class);
-            RangeQueryBuilder rangeQueryBuilder = QueryBuilders.rangeQuery(field);
-            if (StringUtils.isNotBlank(rangeQuery.getGt())) {
-                rangeQueryBuilder.gt(rangeQuery.getGt());
-            } else if (StringUtils.isNotBlank(rangeQuery.getGte())) {
-                rangeQueryBuilder.gte(rangeQuery.getGte());
-            }
-            if (StringUtils.isNotBlank(rangeQuery.getLt())) {
-                rangeQueryBuilder.lt(rangeQuery.getLt());
-            } else if (StringUtils.isNotBlank(rangeQuery.getLte())) {
-                rangeQueryBuilder.lte(rangeQuery.getLte());
-            }
-            return rangeQueryBuilder;
-        } else if (BooleanUtils.isTrue(dto.isExists())) {
-            return QueryBuilders.existsQuery(field);
-        } else {
-            if (dto.getModel() == ElasticFiled.Model.GTE && StringUtils.isNotBlank(field)) {
-                return QueryBuilders.rangeQuery(field).gte(dto.getValue());
-            } else if (dto.getModel() == ElasticFiled.Model.LTE && StringUtils.isNotBlank(field)) {
-                return QueryBuilders.rangeQuery(field).lte(dto.getValue());
-            }
-            return QueryBuilders.termQuery(field, dto.getValue());
         }
+
+        if (dto.getType() == RangeQuery.class) {
+            return rangeQueryBuilder(dto, field);
+        }
+
+        if (BooleanUtils.isTrue(dto.isExists())) {
+            return QueryBuilders.existsQuery(field);
+        }
+
+        if (dto.getModel() == FiledSearch.Model.GTE && StringUtils.isNotBlank(field)) {
+            return QueryBuilders.rangeQuery(field).gte(dto.getValue());
+        }
+
+        if (dto.getModel() == FiledSearch.Model.LTE && StringUtils.isNotBlank(field)) {
+            return QueryBuilders.rangeQuery(field).lte(dto.getValue());
+        }
+
+        return QueryBuilders.termQuery(field, dto.getValue());
+    }
+
+    private static RangeQueryBuilder rangeQueryBuilder(FiledDto dto, String field) {
+        RangeQuery rangeQuery = new ObjectMapper().convertValue(dto.getValue(), RangeQuery.class);
+        RangeQueryBuilder rangeQueryBuilder = QueryBuilders.rangeQuery(field);
+
+        if (StringUtils.isNotBlank(rangeQuery.getGt())) {
+            rangeQueryBuilder.gt(rangeQuery.getGt());
+        } else if (StringUtils.isNotBlank(rangeQuery.getGte())) {
+            rangeQueryBuilder.gte(rangeQuery.getGte());
+        }
+
+        if (StringUtils.isNotBlank(rangeQuery.getLt())) {
+            rangeQueryBuilder.lt(rangeQuery.getLt());
+        } else if (StringUtils.isNotBlank(rangeQuery.getLte())) {
+            rangeQueryBuilder.lte(rangeQuery.getLte());
+        }
+
+        return rangeQueryBuilder;
     }
 
     private static QueryBuilder matchModelHandle(FiledDto dto, String field) {
-        if (dto.getModel() == ElasticFiled.Model.LIKE) {
+        if (dto.getModel() == FiledSearch.Model.LIKE) {
             return QueryBuilders.queryStringQuery("*" + dto.getValue() + "*").defaultField(field);
-        } else if (dto.getModel() == ElasticFiled.Model.START_WITH) {
-            return QueryBuilders.queryStringQuery(dto.getValue() + "*").defaultField(field);
-        } else if (dto.getModel() == ElasticFiled.Model.MATCH_PHRASE) {
-            return QueryBuilders.matchPhraseQuery(field, dto.getValue());
-        } else if (dto.getModel() == ElasticFiled.Model.MATCH) {
-            return matchQuery(field, dto.getValue()).operator(dto.getMatchOperator());
-        } else if (dto.getModel() == ElasticFiled.Model.MULTI_MATCH) {
-            return QueryBuilders.multiMatchQuery(dto.getValue(), field.split(",")).
-                    type(dto.getMultiMatchType()).operator(dto.getMatchOperator());
         }
+
+        if (dto.getModel() == FiledSearch.Model.START_WITH) {
+            return QueryBuilders.queryStringQuery(dto.getValue() + "*").defaultField(field);
+        }
+
+        if (dto.getModel() == FiledSearch.Model.MATCH_PHRASE) {
+            return QueryBuilders.matchPhraseQuery(field, dto.getValue());
+        }
+
+        if (dto.getModel() == FiledSearch.Model.MATCH) {
+            return matchQuery(field, dto.getValue()).operator(dto.getMatchOperator());
+        }
+
+        if (dto.getModel() == FiledSearch.Model.MULTI_MATCH) {
+            return QueryBuilders.multiMatchQuery(dto.getValue(), field.split(","))
+                                .type(dto.getMultiMatchType())
+                                .operator(dto.getMatchOperator());
+        }
+
         return QueryBuilders.termQuery(field, dto.getValue());
     }
 

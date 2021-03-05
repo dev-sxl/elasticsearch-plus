@@ -1,6 +1,6 @@
 package com.xyz.elasticsearchplus.core.bean;
 
-import com.xyz.elasticsearchplus.annotation.ElasticSourceField;
+import com.xyz.elasticsearchplus.annotation.FieldSource;
 import lombok.Data;
 
 import java.util.List;
@@ -14,11 +14,11 @@ public class SearchDto {
     /**
      * 返回值列表
      */
-    @ElasticSourceField
+    @FieldSource
     private List<String> sourceList;
     /**
      * 排除字段列表
      */
-    @ElasticSourceField(type = ElasticSourceField.SourceType.EXCLUDE)
+    @FieldSource(type = FieldSource.SourceType.EXCLUDE)
     private List<String> sourceExcludeList;
 }

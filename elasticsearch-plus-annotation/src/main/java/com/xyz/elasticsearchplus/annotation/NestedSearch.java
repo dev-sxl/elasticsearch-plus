@@ -14,11 +14,11 @@ import java.lang.annotation.Target;
  */
 @Target({ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface ElasticNested {
+public @interface NestedSearch {
 
     String path() default StringUtils.EMPTY;
 
-    ElasticFiled.Method method() default ElasticFiled.Method.MUST;
+    FiledSearch.Method method() default FiledSearch.Method.MUST;
 
 
 }

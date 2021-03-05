@@ -11,7 +11,7 @@ import java.lang.annotation.Target;
  */
 @Target({ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface ElasticSourceField {
+public @interface FieldSource {
 
     String[] source() default {};
 

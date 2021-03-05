@@ -1,9 +1,11 @@
 package com.xyz.elasticsearchplus.core.bean;
 
-import com.xyz.elasticsearchplus.annotation.ElasticFiled;
+import com.google.common.base.CaseFormat;
+import com.xyz.elasticsearchplus.annotation.FiledSearch;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.index.query.MultiMatchQueryBuilder;
 import org.elasticsearch.index.query.Operator;
 
@@ -16,8 +18,8 @@ import org.elasticsearch.index.query.Operator;
 @AllArgsConstructor
 public class FiledDto {
     private Class type;
-    private ElasticFiled.Model model;
-    private ElasticFiled.Method method;
+    private FiledSearch.Model model;
+    private FiledSearch.Method method;
     private Operator matchOperator;
     private MultiMatchQueryBuilder.Type multiMatchType;
     private String key;
@@ -28,7 +30,18 @@ public class FiledDto {
     private String path;
     private Class subType;
 
-    public FiledDto(ElasticFiled.Method method) {
+    public FiledDto(FiledSearch.Method method) {
         this.method = method;
+    }
+
+    public String queryField() {
+        String field = this.getKey();
+        if (StringUtils.isBlank(field)) {
+            field = CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, this.getFieldName());
+        }
+        if (StringUtils.isNotBlank(this.getPath())) {
+            field = this.getPath() + "." + field;
+        }
+        return field;
     }
 }

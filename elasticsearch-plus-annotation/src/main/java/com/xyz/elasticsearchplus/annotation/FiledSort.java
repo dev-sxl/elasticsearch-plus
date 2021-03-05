@@ -12,7 +12,7 @@ import java.lang.annotation.Target;
 
 @Target({ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface ElasticFiledSort {
+public @interface FiledSort {
     Class type() default FieldSortBuilder.class;
 
     String fieldName() default StringUtils.EMPTY;

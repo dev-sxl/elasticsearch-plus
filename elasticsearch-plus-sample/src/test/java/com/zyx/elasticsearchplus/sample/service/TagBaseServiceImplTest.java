@@ -1,9 +1,9 @@
 package com.zyx.elasticsearchplus.sample.service;
 
 import com.google.common.collect.Lists;
-import com.xyz.elasticsearchplus.annotation.ElasticFiled;
-import com.xyz.elasticsearchplus.annotation.ElasticFiledSort;
-import com.xyz.elasticsearchplus.annotation.ElasticSourceField;
+import com.xyz.elasticsearchplus.annotation.FiledSearch;
+import com.xyz.elasticsearchplus.annotation.FiledSort;
+import com.xyz.elasticsearchplus.annotation.FieldSource;
 import com.xyz.elasticsearchplus.core.bean.PageParam;
 import com.xyz.utils.JsonUtils;
 import com.zyx.elasticsearchplus.sample.ApplicationTests;
@@ -43,7 +43,7 @@ class TagBaseServiceImplTest extends ApplicationTests {
     @Test
     void listByParam() {
         TagSearchCondition condition = new TagSearchCondition();
-        condition.setCategory("测试");
+        condition.setCategory("竞对类");
         condition.setValid(1);
         List<TagBasePo> tagBasePos = tagBaseService.listByParam(condition);
         System.out.println("method: listByParam, param: tagBasePos= " + JsonUtils.beanToJson(tagBasePos));
@@ -225,55 +225,55 @@ class TagBaseServiceImplTest extends ApplicationTests {
     @Accessors(chain = true)
     public static class TagSearchCondition extends PageParam {
 
-        @ElasticFiled(model = ElasticFiled.Model.EQUALS)
+        @FiledSearch(model = FiledSearch.Model.EQUALS)
         private String id;
 
-        @ElasticFiled(key = "id", model = ElasticFiled.Model.EQUALS, method = ElasticFiled.Method.MUST)
+        @FiledSearch(key = "id", model = FiledSearch.Model.EQUALS, method = FiledSearch.Method.MUST)
         private List<String> ids;
 
-        @ElasticFiled(model = ElasticFiled.Model.EQUALS)
+        @FiledSearch(model = FiledSearch.Model.EQUALS)
         private Integer valid;
         /**
          * 标签分类
          */
-        @ElasticFiled(model = ElasticFiled.Model.EQUALS)
+        @FiledSearch(model = FiledSearch.Model.EQUALS)
         private String category;
         /**
          * 一级标签
          */
-        @ElasticFiled(model = ElasticFiled.Model.EQUALS)
+        @FiledSearch(model = FiledSearch.Model.EQUALS)
         private String level1;
         /**
          * 一级标签
          */
-        @ElasticFiled(model = ElasticFiled.Model.EQUALS, key = "level1", method = ElasticFiled.Method.SHOULD)
+        @FiledSearch(model = FiledSearch.Model.EQUALS, key = "level1", method = FiledSearch.Method.SHOULD)
         private List<String> level1sShould;
         /**
          * 二级标签
          */
-        @ElasticFiled(model = ElasticFiled.Model.EQUALS)
+        @FiledSearch(model = FiledSearch.Model.EQUALS)
         private String level2;
         /**
          * 搜索关键字
          */
-        @ElasticFiled(model = ElasticFiled.Model.MATCH_PHRASE)
+        @FiledSearch(model = FiledSearch.Model.MATCH_PHRASE)
         private String searchKeywords;
         /**
          * 搜索关键字(IK分词)
          */
-        @ElasticFiled(model = ElasticFiled.Model.MATCH)
+        @FiledSearch(model = FiledSearch.Model.MATCH)
         private String ikSearchKeywords;
 
-        @ElasticFiledSort(fieldName = "create_time", orderBy = SortOrder.DESC)
+        @FiledSort(fieldName = "create_time", orderBy = SortOrder.DESC)
         private Boolean createTimeDescSort;
 
         /** 返回字段列表 */
-        @ElasticSourceField
+        @FieldSource
         private List<String> includeFields;
         /**
          * 排除字段列表
          */
-        @ElasticSourceField(type = ElasticSourceField.SourceType.EXCLUDE)
+        @FieldSource(type = FieldSource.SourceType.EXCLUDE)
         private List<String> excludeFields;
     }
 }
