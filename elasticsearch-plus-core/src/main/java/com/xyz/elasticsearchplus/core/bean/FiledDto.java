@@ -1,7 +1,7 @@
 package com.xyz.elasticsearchplus.core.bean;
 
 import com.google.common.base.CaseFormat;
-import com.xyz.elasticsearchplus.annotation.FiledSearch;
+import com.xyz.elasticsearchplus.core.annotation.FiledSearch;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

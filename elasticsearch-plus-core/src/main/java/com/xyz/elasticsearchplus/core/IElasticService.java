@@ -1,6 +1,5 @@
 package com.xyz.elasticsearchplus.core;
 
-import com.xyz.elasticsearchplus.core.bean.BaseElasticPo;
 import com.xyz.elasticsearchplus.core.bean.DocMetaData;
 import com.xyz.elasticsearchplus.core.bean.PageParam;
 import com.xyz.elasticsearchplus.core.bean.PageResult;
@@ -16,7 +15,7 @@ import java.util.Optional;
  * @author sxl
  * @version 2020/11/20
  */
-public interface IElasticService<T extends BaseElasticPo> {
+public interface IElasticService<T> {
 
     int BATCH_SIZE = 1000;
     /**

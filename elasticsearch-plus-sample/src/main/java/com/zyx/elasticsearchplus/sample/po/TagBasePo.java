@@ -1,10 +1,12 @@
 package com.zyx.elasticsearchplus.sample.po;
 
 import com.alibaba.fastjson.PropertyNamingStrategy;
+import com.alibaba.fastjson.annotation.JSONField;
 import com.alibaba.fastjson.annotation.JSONType;
-import com.xyz.elasticsearchplus.core.bean.BaseElasticPo;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
+
+import java.util.Date;
 
 /**
  * 基础标签库
@@ -13,7 +15,7 @@ import org.apache.commons.lang3.StringUtils;
  */
 @Data
 @JSONType(naming = PropertyNamingStrategy.SnakeCase)
-public class TagBasePo extends BaseElasticPo {
+public class TagBasePo {
 
     /**
      * 标签分类
@@ -39,6 +41,24 @@ public class TagBasePo extends BaseElasticPo {
      * 标签匹配的查询语句
      */
     private String matchDsl;
+    /**
+     * 唯一主键
+     */
+    private String id;
+    /**
+     * 创建时间戳,毫秒
+     */
+    @JSONField(format = "yyyy-MM-dd HH:mm:ss")
+    private Date createTime;
+    /**
+     * 更新时间戳, 毫秒
+     */
+    @JSONField(format = "yyyy-MM-dd HH:mm:ss")
+    private Date updateTime;
+    /**
+     * 是否有效, 1:有效, 0:无效
+     */
+    private Integer valid;
 
     public String getMatchDsl() {
         if (StringUtils.isNotEmpty(matchDsl)) {

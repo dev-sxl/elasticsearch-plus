@@ -1,4 +1,4 @@
-package com.xyz.elasticsearchplus.annotation;
+package com.xyz.elasticsearchplus.core.annotation;
 
 import org.elasticsearch.index.query.MultiMatchQueryBuilder;
 import org.elasticsearch.index.query.Operator;

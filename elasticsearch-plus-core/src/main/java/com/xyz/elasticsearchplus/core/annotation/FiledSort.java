@@ -1,4 +1,4 @@
-package com.xyz.elasticsearchplus.annotation;
+package com.xyz.elasticsearchplus.core.annotation;
 
 import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.common.unit.DistanceUnit;
