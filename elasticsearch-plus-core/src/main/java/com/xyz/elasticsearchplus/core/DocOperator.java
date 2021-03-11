@@ -685,13 +685,12 @@ public final class DocOperator {
         NestedSearch nestedAnnotation;
         nestedAnnotation = field.getAnnotation(NestedSearch.class);
         FiledDto filedDto = nestedSearchFiledDto(path, nestedAnnotation, field);
-        appendField(filedDto, boolQueryBuilder, JSON.parseObject(JSON.toJSONString(dataMap.get(field.getName())), field.getType()));
+        appendField(filedDto, boolQueryBuilder, dataMap.get(field.getName()));
     }
 
     private static FiledDto nestedSearchFiledDto(String path, NestedSearch nestedAnnotation, Field field) {
         FiledDto filedDto = new FiledDto();
-        filedDto.setPath(StringUtils.isNotBlank(nestedAnnotation.path()) ? path :
-                CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, field.getName()));
+        filedDto.setPath(buildPath(path, nestedAnnotation, field));
         filedDto.setType(NestedSearch.class);
         filedDto.setCombined(true);
         filedDto.setFieldName(field.getName());
@@ -699,13 +698,20 @@ public final class DocOperator {
         return filedDto;
     }
 
+    private static String buildPath(String path, NestedSearch nestedAnnotation, Field field) {
+        String pathSuffix = StringUtils.isNotBlank(nestedAnnotation.path()) ?
+                nestedAnnotation.path() : CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, field.getName());
+        if (StringUtils.isBlank(path)) {
+            return pathSuffix;
+        }
+        return path + "." + pathSuffix;
+    }
+
     private static void filedSearchBuild(BoolQueryBuilder boolQueryBuilder, String path, Map<String, Object> conditionMap, Field field) {
-        FiledSearch fieldAnnotation;
-        fieldAnnotation = field.getAnnotation(FiledSearch.class);
+        FiledSearch fieldAnnotation = field.getAnnotation(FiledSearch.class);
         FiledDto filedDto = filedSearchFiledDto(path, conditionMap, fieldAnnotation, field);
-        Object o1 = fieldAnnotation.combined() ?
-                JSON.parseObject(JSON.toJSONString(conditionMap.get(field.getName())), field.getType()) : conditionMap.get(field.getName());
-        appendField(filedDto, boolQueryBuilder, o1);
+        Object fileValue = conditionMap.get(field.getName());
+        appendField(filedDto, boolQueryBuilder, fileValue);
     }
 
     private static FiledDto filedSearchFiledDto(String path, Map dataMap, FiledSearch fieldAnnotation, Field field) {
@@ -760,7 +766,7 @@ public final class DocOperator {
             if (dto.getType() == List.class) {
                 ((List) dto.getValue()).forEach(data -> {
                     BoolQueryBuilder subQuery = QueryBuilders.boolQuery();
-                    build(null, JSON.parseObject(JSON.toJSONString(data), dto.getSubType()), subQuery, dto.getPath());
+                    build(null, data, subQuery, dto.getPath());
                     appendBuilder(new FiledDto(FiledSearch.Method.SHOULD), boolQuery, subQuery);
                 });
             } else {
