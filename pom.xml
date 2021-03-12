@@ -25,6 +25,7 @@
         <guava.version>30.1-jre</guava.version>
         <elasticsearch.version>6.7.2</elasticsearch.version>
         <spring-context.version>5.2.5.RELEASE</spring-context.version>
+        <hibernate-validator.version>6.0.18.Final</hibernate-validator.version>
     </properties>
 
     <dependencyManagement>
@@ -72,21 +73,6 @@
                 <version>${guava.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.xyz</groupId>
-                <artifactId>common-utils</artifactId>
-                <version>1.0.5</version>
-                <exclusions>
-                    <exclusion>
-                        <artifactId>guava</artifactId>
-                        <groupId>com.google.guava</groupId>
-                    </exclusion>
-                    <exclusion>
-                        <artifactId>fastjson</artifactId>
-                        <groupId>com.alibaba</groupId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
                 <groupId>org.elasticsearch.client</groupId>
                 <artifactId>elasticsearch-rest-high-level-client</artifactId>
                 <version>${elasticsearch.version}</version>
@@ -110,6 +96,11 @@
                 <groupId>org.elasticsearch.client</groupId>
                 <artifactId>elasticsearch-rest-client</artifactId>
                 <version>${elasticsearch.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hibernate.validator</groupId>
+                <artifactId>hibernate-validator</artifactId>
+                <version>${hibernate-validator.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -150,20 +141,6 @@
             <artifactId>guava</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.xyz</groupId>
-            <artifactId>common-utils</artifactId>
-            <exclusions>
-                <exclusion>
-                    <artifactId>guava</artifactId>
-                    <groupId>com.google.guava</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>fastjson</artifactId>
-                    <groupId>com.alibaba</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
             <groupId>org.elasticsearch.client</groupId>
             <artifactId>elasticsearch-rest-high-level-client</artifactId>
             <exclusions>
@@ -180,6 +157,12 @@
         <dependency>
             <groupId>org.elasticsearch</groupId>
             <artifactId>elasticsearch</artifactId>
+            <exclusions>
+                <exclusion>
+                    <artifactId>jackson-core</artifactId>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.elasticsearch.client</groupId>

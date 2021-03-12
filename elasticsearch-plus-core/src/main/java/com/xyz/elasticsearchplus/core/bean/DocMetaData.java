@@ -1,6 +1,6 @@
 package com.xyz.elasticsearchplus.core.bean;
 
-import com.xyz.utils.ValidationUtils;
+import com.xyz.elasticsearchplus.core.utils.ValidationUtils;
 import lombok.Getter;
 
 import java.util.Objects;

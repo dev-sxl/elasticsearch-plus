@@ -1,5 +1,6 @@
-package com.xyz.elasticsearchplus.core;
+package com.xyz.elasticsearchplus.core.api;
 
+import com.xyz.elasticsearchplus.core.operator.DocOperator;
 import com.xyz.elasticsearchplus.core.bean.DocMetaData;
 import com.xyz.elasticsearchplus.core.bean.PageParam;
 import com.xyz.elasticsearchplus.core.bean.PageResult;

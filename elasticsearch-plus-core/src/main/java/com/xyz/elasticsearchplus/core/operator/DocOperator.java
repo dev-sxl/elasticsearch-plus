@@ -1,8 +1,7 @@
-package com.xyz.elasticsearchplus.core;
+package com.xyz.elasticsearchplus.core.operator;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Lists;
 import com.xyz.elasticsearchplus.core.annotation.FieldSource;
@@ -10,8 +9,9 @@ import com.xyz.elasticsearchplus.core.annotation.FiledSearch;
 import com.xyz.elasticsearchplus.core.annotation.FiledSort;
 import com.xyz.elasticsearchplus.core.annotation.NestedSearch;
 import com.xyz.elasticsearchplus.core.bean.*;
-import com.xyz.utils.BeanUtils;
-import com.xyz.utils.JsonUtils;
+import com.xyz.elasticsearchplus.core.utils.BeanUtils;
+import com.xyz.elasticsearchplus.core.utils.JsonUtils;
+import com.xyz.elasticsearchplus.core.utils.ValidationUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.IterableUtils;
@@ -96,7 +96,7 @@ public final class DocOperator {
         throw new RuntimeException("DocOperator can use in after init");
     }
 
-    static <T> Optional<T> getById(DocMetaData<T> docMetaData, String id) {
+    public static <T> Optional<T> getById(DocMetaData<T> docMetaData, String id) {
         GetRequest getRequest = new GetRequest(docMetaData.getIndex(), docMetaData.getType(), id);
         try {
             GetResponse response = highLevelClient().get(getRequest, RequestOptions.DEFAULT);
@@ -170,7 +170,7 @@ public final class DocOperator {
     }
 
     public static <T> PageResult<T> pageByDsl(DocMetaData<T> docMetaData, String dslJsonString, PageParam pageSearchDto) {
-
+        ValidationUtils.notBlank(dslJsonString, "dslJsonString need not null");
         JSONObject jsonObject = JsonUtils.jsonToBean(dslJsonString, JSONObject.class);
         jsonObject.put("from", pageSearchDto.getPageSize() * (pageSearchDto.getPageNo() - 1));
         jsonObject.put("size", pageSearchDto.getPageSize());
@@ -780,13 +780,13 @@ public final class DocOperator {
         }
 
         if (dto.getType() == GeoLocation.class) {
-            GeoLocation geoLocation = new ObjectMapper().convertValue(dto.getValue(), GeoLocation.class);
-            return QueryBuilders.geoDistanceQuery(field).
-                    distance(geoLocation.getDistance()).point(new GeoPoint(geoLocation.getLocation()));
+            GeoLocation geoLocation = (GeoLocation) dto.getValue();
+            return QueryBuilders.geoDistanceQuery(field).distance(geoLocation.getDistance())
+                                .point(new GeoPoint(geoLocation.getLocation()));
         }
 
         if (dto.getType() == GeoBoundingBox.class) {
-            GeoBoundingBox box = new ObjectMapper().convertValue(dto.getValue(), GeoBoundingBox.class);
+            GeoBoundingBox box = (GeoBoundingBox) dto.getValue();
             return QueryBuilders.geoBoundingBoxQuery(field).setCorners(new GeoPoint(box.getTopLeftPoint()),
                     new GeoPoint(box.getBottomRightPoint()));
         }
@@ -811,7 +811,7 @@ public final class DocOperator {
     }
 
     private static RangeQueryBuilder rangeQueryBuilder(FiledDto dto, String field) {
-        RangeQuery rangeQuery = new ObjectMapper().convertValue(dto.getValue(), RangeQuery.class);
+        RangeQuery rangeQuery = (RangeQuery) dto.getValue();
         RangeQueryBuilder rangeQueryBuilder = QueryBuilders.rangeQuery(field);
 
         if (StringUtils.isNotBlank(rangeQuery.getGt())) {

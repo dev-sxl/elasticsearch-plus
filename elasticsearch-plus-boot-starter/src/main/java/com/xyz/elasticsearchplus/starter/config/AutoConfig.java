@@ -1,6 +1,6 @@
 package com.xyz.elasticsearchplus.starter.config;
 
-import com.xyz.elasticsearchplus.core.DocOperator;
+import com.xyz.elasticsearchplus.core.operator.DocOperator;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;

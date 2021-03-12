@@ -1,6 +1,6 @@
 package com.zyx.elasticsearchplus.sample.service;
 
-import com.xyz.elasticsearchplus.core.IElasticService;
+import com.xyz.elasticsearchplus.core.api.IElasticService;
 import com.zyx.elasticsearchplus.sample.po.TagBasePo;
 
 /**
