@@ -1,11 +1,9 @@
 package com.xyz.elasticsearchplus.core.api;
 
-import com.xyz.elasticsearchplus.core.operator.DocOperator;
 import com.xyz.elasticsearchplus.core.bean.DocMetaData;
 import com.xyz.elasticsearchplus.core.bean.PageParam;
 import com.xyz.elasticsearchplus.core.bean.PageResult;
-import org.elasticsearch.action.bulk.BulkShardRequest;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
+import com.xyz.elasticsearchplus.core.operator.OperatorFactory;
 
 import java.util.Collection;
 import java.util.List;
@@ -33,101 +31,95 @@ public interface IElasticService<T> {
      * @return Optional
      */
     default Optional<T> getById(String id) {
-        return DocOperator.getById(this.docMetaData(), id);
+        return OperatorFactory.getOperator().getById(this.docMetaData(), id);
     }
 
     default List<T> getByIds(Collection<String> ids) {
-        return DocOperator.multiGet(this.docMetaData(), ids);
+        return OperatorFactory.getOperator().multiGet(this.docMetaData(), ids);
     }
 
     default List<T> listByParam(Object conditionBean, int size) {
-        return DocOperator.searchByParam(this.docMetaData(), conditionBean, size);
+        return OperatorFactory.getOperator().searchByParam(this.docMetaData(), conditionBean, size);
     }
 
     default List<T> listByParam(Object conditionBean) {
-        return DocOperator.searchByParam(this.docMetaData(), conditionBean, LIMIT);
+        return OperatorFactory.getOperator().searchByParam(this.docMetaData(), conditionBean, LIMIT);
     }
 
     default List<T> listByDsl(String dslJsonString) {
-        return DocOperator.listByDsl(this.docMetaData(), dslJsonString);
+        return OperatorFactory.getOperator().listByDsl(this.docMetaData(), dslJsonString);
     }
 
     default PageResult<T> pageByParam(Object o, PageParam pageSearchDto) {
-        return DocOperator.pageByParam(this.docMetaData(), o, pageSearchDto);
+        return OperatorFactory.getOperator().pageByParam(this.docMetaData(), o, pageSearchDto);
     }
 
     default PageResult<T> pageByDsl(String dslJsonString, PageParam pageParam) {
-        return DocOperator.pageByDsl(this.docMetaData(), dslJsonString, pageParam);
+        return OperatorFactory.getOperator().pageByDsl(this.docMetaData(), dslJsonString, pageParam);
     }
 
     default Long countByParam(Object conditionBean) {
-        return DocOperator.countByParam(this.docMetaData(), conditionBean);
+        return OperatorFactory.getOperator().countByParam(this.docMetaData(), conditionBean);
     }
 
     default List<T> scrollByParam(Object conditionBean) {
-        return DocOperator.scrollByParam(this.docMetaData(), conditionBean);
+        return OperatorFactory.getOperator().scrollByParam(this.docMetaData(), conditionBean);
     }
 
     default List<T> scrollByParam(DocMetaData<T> docMetaData, Object conditionBean, String scrollId, int size) {
-        return DocOperator.scrollByParam(docMetaData, conditionBean, scrollId, size);
+        return OperatorFactory.getOperator().scrollByParam(docMetaData, conditionBean, scrollId, size);
     }
 
     default List<T> scrollByDsl(String dslJsonString, String scrollId, int size) {
-        return DocOperator.scrollByDsl(this.docMetaData(), dslJsonString, scrollId, size);
-    }
-
-    default PageResult<T> pageBySourceBuilder(SearchSourceBuilder sourceBuilder) {
-        return DocOperator.pageByParam(this.docMetaData(), sourceBuilder);
+        return OperatorFactory.getOperator().scrollByDsl(this.docMetaData(), dslJsonString, scrollId, size);
     }
 
     default void saveBatchAsync(List<T> dataList) {
-        DocOperator.bulkInsertAsync(this.docMetaData(), dataList, BATCH_SIZE, BulkShardRequest.DEFAULT_TIMEOUT);
+        OperatorFactory.getOperator().bulkInsertAsync(this.docMetaData(), dataList, BATCH_SIZE);
     }
 
     default void updateBatchAsync(List<T> dataList) {
-        DocOperator.bulkUpdateAsync(this.docMetaData(), dataList, BATCH_SIZE, BulkShardRequest.DEFAULT_TIMEOUT);
-
+        OperatorFactory.getOperator().bulkUpdateAsync(this.docMetaData(), dataList, BATCH_SIZE);
     }
 
     default void deleteBatchAsync(List<String> ids) {
-        DocOperator.bulkDeleteAsync(this.docMetaData(), ids, BATCH_SIZE, BulkShardRequest.DEFAULT_TIMEOUT);
+        OperatorFactory.getOperator().bulkDeleteAsync(this.docMetaData(), ids, BATCH_SIZE);
     }
 
     default void saveAsync(T data) {
-        DocOperator.insertAsync(this.docMetaData(), data, BulkShardRequest.DEFAULT_TIMEOUT);
+        OperatorFactory.getOperator().insertAsync(this.docMetaData(), data);
     }
 
     default void updateAsync(T data) {
-        DocOperator.updateAsync(this.docMetaData(), data, BulkShardRequest.DEFAULT_TIMEOUT);
+        OperatorFactory.getOperator().updateAsync(this.docMetaData(), data);
     }
 
     default void deleteAsync(String id) {
-        DocOperator.deleteAsync(this.docMetaData(), id, BulkShardRequest.DEFAULT_TIMEOUT);
+        OperatorFactory.getOperator().deleteAsync(this.docMetaData(), id);
     }
 
     default void saveBatch(List<T> dataList) {
-        DocOperator.bulkInsert(this.docMetaData(), dataList, BATCH_SIZE, BulkShardRequest.DEFAULT_TIMEOUT);
+        OperatorFactory.getOperator().bulkInsert(this.docMetaData(), dataList, BATCH_SIZE);
     }
 
     default void updateBatch(List<T> dataList) {
-        DocOperator.bulkUpdate(this.docMetaData(), dataList, BATCH_SIZE, BulkShardRequest.DEFAULT_TIMEOUT);
-
+        OperatorFactory.getOperator().bulkUpdate(this.docMetaData(), dataList, BATCH_SIZE);
     }
 
     default void deleteBatch(List<String> ids) {
-        DocOperator.bulkDelete(this.docMetaData(), ids, BATCH_SIZE, BulkShardRequest.DEFAULT_TIMEOUT);
+        OperatorFactory.getOperator().bulkDelete(this.docMetaData(), ids, BATCH_SIZE);
     }
 
     default void save(T data) {
-        DocOperator.save(this.docMetaData(), data, BulkShardRequest.DEFAULT_TIMEOUT);
+        OperatorFactory.getOperator().save(this.docMetaData(), data);
     }
 
     default void update(T data) {
-        DocOperator.update(this.docMetaData(), data, BulkShardRequest.DEFAULT_TIMEOUT);
+        OperatorFactory.getOperator().update(this.docMetaData(), data);
     }
 
     default void delete(String id) {
-        DocOperator.delete(this.docMetaData(), id, BulkShardRequest.DEFAULT_TIMEOUT);
+        OperatorFactory.getOperator().delete(this.docMetaData(), id);
     }
 
 }

@@ -1,4 +1,4 @@
-package com.xyz.elasticsearchplus.core.operator;
+package com.zyx.elasticsearchplus.operator6.impl;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
@@ -9,6 +9,7 @@ import com.xyz.elasticsearchplus.core.annotation.FiledSearch;
 import com.xyz.elasticsearchplus.core.annotation.FiledSort;
 import com.xyz.elasticsearchplus.core.annotation.NestedSearch;
 import com.xyz.elasticsearchplus.core.bean.*;
+import com.xyz.elasticsearchplus.core.operator.IDocOperator;
 import com.xyz.elasticsearchplus.core.utils.BeanUtils;
 import com.xyz.elasticsearchplus.core.utils.JsonUtils;
 import com.xyz.elasticsearchplus.core.utils.ValidationUtils;
@@ -53,50 +54,33 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static org.elasticsearch.index.query.QueryBuilders.matchQuery;
-
 
 /**
  * @author sxl
  * @version 2019/11/15
  */
 @Slf4j
-public final class DocOperator {
+public final class DocOperator implements IDocOperator {
 
     /**
      * 一次获取数据量
      */
-    private static final int LIMIT = 1000;
+    private final int LIMIT = 1000;
 
-    private static RestHighLevelClient highLevelClient;
+    private RestHighLevelClient highLevelClient;
 
-    private static volatile boolean hasInit = false;
+    private volatile boolean hasInit = false;
 
-    private DocOperator() {
+    public DocOperator(RestHighLevelClient highLevelClient) {
+        this.highLevelClient = Objects.requireNonNull(highLevelClient);
     }
 
-    public static void init(RestHighLevelClient highLevelClient) {
-        if (hasInit) {
-            return;
-        }
-
-        synchronized (DocOperator.class) {
-            if (hasInit) {
-                return;
-            }
-            DocOperator.highLevelClient = highLevelClient;
-            hasInit = true;
-        }
+    public RestHighLevelClient highLevelClient() {
+        return highLevelClient;
     }
 
-    public static RestHighLevelClient highLevelClient() {
-        if (hasInit) {
-            return DocOperator.highLevelClient;
-        }
-        throw new RuntimeException("DocOperator can use in after init");
-    }
-
-    public static <T> Optional<T> getById(DocMetaData<T> docMetaData, String id) {
+    @Override
+    public <T> Optional<T> getById(DocMetaData<T> docMetaData, String id) {
         GetRequest getRequest = new GetRequest(docMetaData.getIndex(), docMetaData.getType(), id);
         try {
             GetResponse response = highLevelClient().get(getRequest, RequestOptions.DEFAULT);
@@ -116,7 +100,8 @@ public final class DocOperator {
      * @param ids ids
      * @return List<T>
      */
-    public static <T> List<T> multiGet(DocMetaData<T> docMetaData, Collection<String> ids) {
+    @Override
+    public <T> List<T> multiGet(DocMetaData<T> docMetaData, Collection<String> ids) {
         if (CollectionUtils.isEmpty(ids)) {
             return Collections.emptyList();
         }
@@ -137,7 +122,7 @@ public final class DocOperator {
         }
     }
 
-    public static <T> SearchResponse doSearch(DocMetaData<T> docMetaData, SearchSourceBuilder sourceBuilder) {
+    public <T> SearchResponse doSearch(DocMetaData<T> docMetaData, SearchSourceBuilder sourceBuilder) {
         SearchRequest searchRequest = new SearchRequest(docMetaData.getIndex());
         searchRequest.types(docMetaData.getType());
         searchRequest.source(sourceBuilder);
@@ -150,7 +135,7 @@ public final class DocOperator {
         return response;
     }
 
-    private static <T> List<T> getDataByHits(SearchHits hits, Class<T> type) {
+    private <T> List<T> getDataByHits(SearchHits hits, Class<T> type) {
         List<T> resultList = new ArrayList<>(((int) (hits.getTotalHits())));
         T data;
         for (SearchHit hit : hits) {
@@ -160,7 +145,8 @@ public final class DocOperator {
         return resultList;
     }
 
-    public static <T> List<T> listByDsl(DocMetaData<T> docMetaData, String dslJsonString) {
+    @Override
+    public <T> List<T> listByDsl(DocMetaData<T> docMetaData, String dslJsonString) {
         String endpoint = docMetaData.getIndex() + "/" + docMetaData.getType() + "/_search";
         String responseStr = queryByDsl(dslJsonString, endpoint);
         if (StringUtils.isBlank(responseStr)) {
@@ -169,7 +155,8 @@ public final class DocOperator {
         return hitSourcesFromResult(docMetaData, responseStr);
     }
 
-    public static <T> PageResult<T> pageByDsl(DocMetaData<T> docMetaData, String dslJsonString, PageParam pageSearchDto) {
+    @Override
+    public <T> PageResult<T> pageByDsl(DocMetaData<T> docMetaData, String dslJsonString, PageParam pageSearchDto) {
         ValidationUtils.notBlank(dslJsonString, "dslJsonString need not null");
         JSONObject jsonObject = JsonUtils.jsonToBean(dslJsonString, JSONObject.class);
         jsonObject.put("from", pageSearchDto.getPageSize() * (pageSearchDto.getPageNo() - 1));
@@ -180,11 +167,11 @@ public final class DocOperator {
         return new PageResult<>(total, pageSearchDto.getPageNo(), pageSearchDto.getPageSize(), hitSourcesFromResult(docMetaData, respStr));
     }
 
-    private static <T> List<T> hitSourcesFromResult(DocMetaData<T> docMetaData, String responseStr) {
+    private <T> List<T> hitSourcesFromResult(DocMetaData<T> docMetaData, String responseStr) {
         return JsonUtils.extraListByPath(responseStr, "$.hits.hits[*]._source", docMetaData.getDocType());
     }
 
-    private static String queryByDsl(String dslJsonString, String endpoint) {
+    private String queryByDsl(String dslJsonString, String endpoint) {
         RestClient restClient = highLevelClient().getLowLevelClient();
         try {
             Request request = new Request("GET", endpoint);
@@ -205,13 +192,14 @@ public final class DocOperator {
      * @param conditionBean 查询参数
      * @return 返回结果
      */
-    public static <T> List<T> searchByParam(DocMetaData<T> docMetaData, Object conditionBean, int size) {
+    @Override
+    public <T> List<T> searchByParam(DocMetaData<T> docMetaData, Object conditionBean, int size) {
         SearchResponse response = doSearchByCondition(docMetaData, conditionBean, size);
         return getDataByHits(response.getHits(), docMetaData.getDocType());
     }
 
-    public static <T> SearchResponse doSearchByCondition(DocMetaData<T> docMetaData,
-                                                         Object conditionBean, int size) {
+    public <T> SearchResponse doSearchByCondition(DocMetaData<T> docMetaData,
+                                                  Object conditionBean, int size) {
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
         builderParam(sourceBuilder, conditionBean);
         sourceBuilder.size(size);
@@ -224,7 +212,7 @@ public final class DocOperator {
      * @param conditionBean 查询参数
      * @return 返回结果
      */
-    public static <T> List<T> searchByParam(DocMetaData<T> docMetaData, Object conditionBean) {
+    public <T> List<T> searchByParam(DocMetaData<T> docMetaData, Object conditionBean) {
         return searchByParam(docMetaData, conditionBean, LIMIT);
     }
 
@@ -234,7 +222,8 @@ public final class DocOperator {
      * @param conditionBean 查询参数
      * @return 返回结果
      */
-    public static <T> Long countByParam(DocMetaData<T> docMetaData, Object conditionBean) {
+    @Override
+    public <T> Long countByParam(DocMetaData<T> docMetaData, Object conditionBean) {
         return doSearchByCondition(docMetaData, conditionBean, 0).getHits().totalHits;
     }
 
@@ -242,11 +231,13 @@ public final class DocOperator {
         return scrollByParam(docMetaData, conditionBean, timeValue, LIMIT);
     }
 
-    public static <T> List<T> scrollByParam(DocMetaData<T> docMetaData, Object conditionBean) {
+    @Override
+    public <T> List<T> scrollByParam(DocMetaData<T> docMetaData, Object conditionBean) {
         return scrollByParam(docMetaData, conditionBean, BulkShardRequest.DEFAULT_TIMEOUT, LIMIT);
     }
 
-    public static <T> List<T> scrollByParam(DocMetaData<T> docMetaData, Object conditionBean, String scrollId, int size) {
+    @Override
+    public <T> List<T> scrollByParam(DocMetaData<T> docMetaData, Object conditionBean, String scrollId, int size) {
         Scroll scroll = new Scroll(BulkShardRequest.DEFAULT_TIMEOUT);
         SearchResponse searchResponse;
         try {
@@ -286,7 +277,8 @@ public final class DocOperator {
         }
     }
 
-    public static <T> List<T> scrollByDsl(DocMetaData<T> docMetaData, String dslJsonString, String scrollId, int size) {
+    @Override
+    public <T> List<T> scrollByDsl(DocMetaData<T> docMetaData, String dslJsonString, String scrollId, int size) {
         String scrollContextKeepAliveTime = "3m";
         String respStr;
         if (StringUtils.isBlank(scrollId)) {
@@ -317,7 +309,7 @@ public final class DocOperator {
         return data;
     }
 
-    private static void clearScroll(String scrollId) {
+    private void clearScroll(String scrollId) {
         try {
             // 进行clear scroll
             ClearScrollRequest clearScrollRequest = new ClearScrollRequest();
@@ -340,14 +332,14 @@ public final class DocOperator {
      * @param size          批次数量
      * @return 数据
      */
-    public static <T> List<T> scrollByParam(DocMetaData<T> docMetaData, Object conditionBean, TimeValue timeValue, int size) {
+    public <T> List<T> scrollByParam(DocMetaData<T> docMetaData, Object conditionBean, TimeValue timeValue, int size) {
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
         builderParam(sourceBuilder, conditionBean);
         return scrollBySearchSourceBuilder(docMetaData, sourceBuilder, timeValue, size);
     }
 
-    public static <T> List<T> scrollBySearchSourceBuilder(DocMetaData<T> docMetaData, SearchSourceBuilder sourceBuilder,
-                                                          TimeValue timeValue, int size) {
+    public <T> List<T> scrollBySearchSourceBuilder(DocMetaData<T> docMetaData, SearchSourceBuilder sourceBuilder,
+                                                   TimeValue timeValue, int size) {
         sourceBuilder.size(size);
         String scrollId = null;
         long hitSize = 0;
@@ -386,7 +378,7 @@ public final class DocOperator {
         return resultList;
     }
 
-    private static <T> List<T> getContainer(long size) {
+    private <T> List<T> getContainer(long size) {
         try {
             return new ArrayList<>(Math.toIntExact(size));
         } catch (ArithmeticException e) {
@@ -394,55 +386,60 @@ public final class DocOperator {
         }
     }
 
-    public static <T> void insertAsync(DocMetaData<T> docMetaData, T data, TimeValue timeout) {
-        saveAsync(timeout, () -> buildInsertRequest(docMetaData, data));
+    @Override
+    public <T> void insertAsync(DocMetaData<T> docMetaData, T data) {
+        saveAsync(BulkShardRequest.DEFAULT_TIMEOUT, () -> buildInsertRequest(docMetaData, data));
     }
 
-    public static <T> void updateAsync(DocMetaData<T> docMetaData, T data, TimeValue timeout) {
-        saveAsync(timeout, () -> buildUpdateRequest(docMetaData, data));
+    @Override
+    public <T> void updateAsync(DocMetaData<T> docMetaData, T data) {
+        saveAsync(BulkShardRequest.DEFAULT_TIMEOUT, () -> buildUpdateRequest(docMetaData, data));
     }
 
-    public static <T> void deleteAsync(DocMetaData<T> docMetaData,
-                                       String data, TimeValue timeout) {
-        saveAsync(timeout, () -> buildDeleteRequest(docMetaData, data));
+    @Override
+    public <T> void deleteAsync(DocMetaData<T> docMetaData,
+                                String data) {
+        saveAsync(BulkShardRequest.DEFAULT_TIMEOUT, () -> buildDeleteRequest(docMetaData, data));
     }
 
 
-    public static <T> void bulkInsertAsync(DocMetaData<T> docMetaData,
-                                           List<T> dataList, int count, TimeValue timeout) {
-        bulkAsync(count, timeout, dataList, (T doc) -> buildInsertRequest(docMetaData, doc));
+    @Override
+    public <T> void bulkInsertAsync(DocMetaData<T> docMetaData, List<T> dataList, int count) {
+        bulkAsync(count, dataList, (T doc) -> buildInsertRequest(docMetaData, doc));
     }
 
-    public static <T> void bulkUpdateAsync(DocMetaData<T> docMetaData, List<T> dataList, int count, TimeValue timeout) {
-        bulkAsync(count, timeout, dataList, (T doc) -> buildUpdateRequest(docMetaData, doc));
+    @Override
+    public <T> void bulkUpdateAsync(DocMetaData<T> docMetaData, List<T> dataList, int count) {
+        bulkAsync(count, dataList, (T doc) -> buildUpdateRequest(docMetaData, doc));
     }
 
-    public static <T> void bulkDeleteAsync(DocMetaData<T> docMetaData, List<String> ids, int count, TimeValue timeout) {
-        bulkAsync(count, timeout, ids, (String id) -> buildDeleteRequest(docMetaData, id));
+    @Override
+    public <T> void bulkDeleteAsync(DocMetaData<T> docMetaData, List<String> ids, int count) {
+        bulkAsync(count, ids, (String id) -> buildDeleteRequest(docMetaData, id));
     }
 
-    public static <T> void bulkAsync(int count, TimeValue timeout, List<T> dataList,
-                                     Function<T, DocWriteRequest<?>> requestFunction) {
+    public <T> void bulkAsync(int count, List<T> dataList,
+                              Function<T, DocWriteRequest<?>> requestFunction) {
         List<DocWriteRequest<?>> actionList = buildWriteRequests(dataList, requestFunction);
         if (CollectionUtils.isEmpty(actionList)) {
             return;
         }
-        Lists.partition(actionList, count).forEach(data -> bulkAsync(timeout, data));
+        Lists.partition(actionList, count).forEach(data -> bulkAsync(BulkShardRequest.DEFAULT_TIMEOUT, data));
     }
 
-    public static <T> void bulkAsync(TimeValue timeout, Iterable<DocWriteRequest<?>> data) {
+    public <T> void bulkAsync(TimeValue timeout, Iterable<DocWriteRequest<?>> data) {
         BulkRequest request = new BulkRequest();
         request.timeout(timeout).add(data);
         highLevelClient().bulkAsync(request, RequestOptions.DEFAULT, getListener());
     }
 
-    private static <T> void saveAsync(TimeValue timeout, Supplier<DocWriteRequest<T>> requestFunction) {
+    private <T> void saveAsync(TimeValue timeout, Supplier<DocWriteRequest<T>> requestFunction) {
         BulkRequest request = new BulkRequest().timeout(timeout).add(requestFunction.get());
         highLevelClient().bulkAsync(request, RequestOptions.DEFAULT, getListener());
     }
 
-    public static <T> List<DocWriteRequest<?>> buildWriteRequests(List<T> dataList,
-                                                                  Function<T, DocWriteRequest<?>> requestFunction) {
+    public <T> List<DocWriteRequest<?>> buildWriteRequests(List<T> dataList,
+                                                           Function<T, DocWriteRequest<?>> requestFunction) {
         if (CollectionUtils.isEmpty(dataList)) {
             return Collections.emptyList();
         }
@@ -450,41 +447,46 @@ public final class DocOperator {
         return dataList.stream().map(requestFunction).collect(Collectors.toList());
     }
 
-    public static <T> void bulkInsert(DocMetaData<T> docMetaData,
-                                      List<T> dataList, int count, TimeValue timeout) {
-        bulk(dataList, count, timeout, (T doc) -> buildInsertRequest(docMetaData, doc));
+    @Override
+    public <T> void bulkInsert(DocMetaData<T> docMetaData, List<T> dataList, int count) {
+        bulk(dataList, count, (T doc) -> buildInsertRequest(docMetaData, doc));
     }
 
-    public static <T> void bulkUpdate(DocMetaData<T> docMetaData, List<T> dataList, int count, TimeValue timeout) {
-        bulk(dataList, count, timeout, (T doc) -> buildUpdateRequest(docMetaData, doc));
+    @Override
+    public <T> void bulkUpdate(DocMetaData<T> docMetaData, List<T> dataList, int count) {
+        bulk(dataList, count, (T doc) -> buildUpdateRequest(docMetaData, doc));
     }
 
-    public static <T> void bulkDelete(DocMetaData<T> docMetaData, List<String> ids, int count, TimeValue timeout) {
-        bulk(ids, count, timeout, (String id) -> buildDeleteRequest(docMetaData, id));
+    @Override
+    public <T> void bulkDelete(DocMetaData<T> docMetaData, List<String> ids, int count) {
+        bulk(ids, count, (String id) -> buildDeleteRequest(docMetaData, id));
     }
 
-    public static <T> void save(DocMetaData<T> docMetaData, T data, TimeValue timeout) {
-        commit(timeout, () -> buildInsertRequest(docMetaData, data));
+    @Override
+    public <T> void save(DocMetaData<T> docMetaData, T data) {
+        commit(BulkShardRequest.DEFAULT_TIMEOUT, () -> buildInsertRequest(docMetaData, data));
     }
 
-    public static <T> void update(DocMetaData<T> docMetaData, T data, TimeValue timeout) {
-        commit(timeout, () -> buildUpdateRequest(docMetaData, data));
+    @Override
+    public <T> void update(DocMetaData<T> docMetaData, T data) {
+        commit(BulkShardRequest.DEFAULT_TIMEOUT, () -> buildUpdateRequest(docMetaData, data));
     }
 
-    public static <T> void delete(DocMetaData<T> docMetaData, String id, TimeValue timeout) {
-        commit(timeout, () -> buildDeleteRequest(docMetaData, id));
+    @Override
+    public <T> void delete(DocMetaData<T> docMetaData, String id) {
+        commit(BulkShardRequest.DEFAULT_TIMEOUT, () -> buildDeleteRequest(docMetaData, id));
     }
 
-    public static <T> void bulk(List<T> dataList, int count, TimeValue timeout, Function<T, DocWriteRequest<?>> requestFunction) {
+    private <T> void bulk(List<T> dataList, int count, Function<T, DocWriteRequest<?>> requestFunction) {
         if (CollectionUtils.isEmpty(dataList)) {
             return;
         }
 
         List<DocWriteRequest<?>> actionList = buildWriteRequests(dataList, requestFunction);
-        Lists.partition(actionList, count).forEach(data -> bulk(timeout, data));
+        Lists.partition(actionList, count).forEach(data -> bulk(BulkShardRequest.DEFAULT_TIMEOUT, data));
     }
 
-    public static void bulk(TimeValue timeout, List<DocWriteRequest<?>> data) {
+    public void bulk(TimeValue timeout, List<DocWriteRequest<?>> data) {
         BulkRequest request = new BulkRequest();
         request.timeout(timeout).add(data);
         //写入完成立即刷新
@@ -497,11 +499,11 @@ public final class DocOperator {
         }
     }
 
-    private static <T> void commit(TimeValue timeout, Supplier<DocWriteRequest<T>> writeRequestSupplier) {
+    private <T> void commit(TimeValue timeout, Supplier<DocWriteRequest<T>> writeRequestSupplier) {
         commit(timeout, writeRequestSupplier.get());
     }
 
-    public static <T> void commit(TimeValue timeout, DocWriteRequest<T> data) {
+    public <T> void commit(TimeValue timeout, DocWriteRequest<T> data) {
         BulkRequest request = new BulkRequest().timeout(timeout).add(data);
         try {
             BulkResponse bulk = highLevelClient().bulk(request, RequestOptions.DEFAULT);
@@ -511,17 +513,17 @@ public final class DocOperator {
         }
     }
 
-    private static <T> DeleteRequest buildDeleteRequest(DocMetaData<T> docMetaData, String id) {
+    private <T> DeleteRequest buildDeleteRequest(DocMetaData<T> docMetaData, String id) {
         return new DeleteRequest(docMetaData.getIndex(), docMetaData.getType(), id);
     }
 
-    private static <T> UpdateRequest buildUpdateRequest(DocMetaData<T> docMetaData, T doc) {
+    private <T> UpdateRequest buildUpdateRequest(DocMetaData<T> docMetaData, T doc) {
         String source = JsonUtils.beanToJson(doc);
         String id = extractId(docMetaData, source);
         return new UpdateRequest(docMetaData.getIndex(), docMetaData.getType(), id).doc(source, XContentType.JSON);
     }
 
-    private static <T> IndexRequest buildInsertRequest(DocMetaData<T> docMetaData, T doc) {
+    private <T> IndexRequest buildInsertRequest(DocMetaData<T> docMetaData, T doc) {
         String source = JsonUtils.beanToJson(doc);
         String id = extractId(docMetaData, source);
         if (StringUtils.isBlank(id)) {
@@ -530,11 +532,11 @@ public final class DocOperator {
         return new IndexRequest(docMetaData.getIndex(), docMetaData.getType(), id).source(source, XContentType.JSON);
     }
 
-    private static <T> String extractId(DocMetaData<T> docMetaData, String source) {
+    private <T> String extractId(DocMetaData<T> docMetaData, String source) {
         return JsonUtils.extractStrByPath(source, docMetaData.getIdSourceName());
     }
 
-    private static ActionListener<BulkResponse> getListener() {
+    private ActionListener<BulkResponse> getListener() {
         return new ActionListener<BulkResponse>() {
             @Override
             public void onResponse(BulkResponse bulkResponse) {
@@ -554,7 +556,8 @@ public final class DocOperator {
      * @param o 查询参数
      * @return 返回结果
      */
-    public static <T> PageResult<T> pageByParam(DocMetaData<T> docMetaData, Object o, PageParam pageSearchDto) {
+    @Override
+    public <T> PageResult<T> pageByParam(DocMetaData<T> docMetaData, Object o, PageParam pageSearchDto) {
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
         sourceBuilder.from((pageSearchDto.getPageNo() - 1) * pageSearchDto.getPageSize());
         sourceBuilder.size(pageSearchDto.getPageSize());
@@ -568,18 +571,20 @@ public final class DocOperator {
      * @param sourceBuilder SearchSourceBuilder
      * @return List<T>
      */
-    public static <T> PageResult<T> pageByParam(DocMetaData<T> docMetaData, SearchSourceBuilder sourceBuilder) {
+    @Override
+    public <T> PageResult<T> pageByParam(DocMetaData<T> docMetaData, SearchSourceBuilder sourceBuilder) {
         SearchResponse response = doSearch(docMetaData, sourceBuilder);
         long totalHits = response.getHits().totalHits;
         List<T> dataList = getDataByHits(response.getHits(), docMetaData.getDocType());
         return new PageResult<>(totalHits, sourceBuilder.from() / sourceBuilder.size() + 1, sourceBuilder.size(), dataList);
     }
 
-    private static void appendSort(SearchSourceBuilder sourceBuilder, FiledSortDto sortDto) {
+    private void appendSort(SearchSourceBuilder sourceBuilder, FiledSortDto sortDto) {
         if (sortDto.getType() == GeoDistanceSortBuilder.class) {
             GeoPoint geoPoint = new GeoPoint(sortDto.getValue().toString());
-            GeoDistanceSortBuilder sortBuilder = new GeoDistanceSortBuilder(sortDto.getFieldName(), geoPoint).order(sortDto.getOrderBy())
-                                                                                                             .unit(sortDto.getUnit());
+            GeoDistanceSortBuilder sortBuilder = new GeoDistanceSortBuilder(sortDto.getFieldName(), geoPoint)
+                    .order(sortDto.getOrderBy())
+                    .unit(sortDto.getUnit());
             sourceBuilder.sort(sortBuilder);
         } else if (sortDto.getType() == FieldSortBuilder.class) {
             sourceBuilder.sort(new FieldSortBuilder(sortDto.getFieldName()).order(sortDto.getOrderBy()));
@@ -592,13 +597,13 @@ public final class DocOperator {
      * @param o 入参
      * @return boolean
      */
-    public static void builderParam(SearchSourceBuilder sourceBuilder, Object o) {
+    public void builderParam(SearchSourceBuilder sourceBuilder, Object o) {
         BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
         sourceBuilder.query(boolQueryBuilder);
         build(sourceBuilder, o, boolQueryBuilder, StringUtils.EMPTY);
     }
 
-    private static void build(SearchSourceBuilder sourceBuilder, Object conditionBean, BoolQueryBuilder boolQueryBuilder, String path) {
+    private void build(SearchSourceBuilder sourceBuilder, Object conditionBean, BoolQueryBuilder boolQueryBuilder, String path) {
         Map<String, Object> conditionMap = BeanUtils.beanToMap(conditionBean);
         for (Field field : conditionBean.getClass().getDeclaredFields()) {
             if (valueIsEmpty(conditionMap.get(field.getName()))) {
@@ -627,7 +632,7 @@ public final class DocOperator {
         }
     }
 
-    public static boolean valueIsEmpty(final Object object) {
+    public boolean valueIsEmpty(final Object object) {
         if (object == null) {
             return true;
         }
@@ -659,7 +664,7 @@ public final class DocOperator {
         }
     }
 
-    private static void sourceFiledBuild(SearchSourceBuilder sourceBuilder, Map<String, Object> conditionMap, Field field) {
+    private void sourceFiledBuild(SearchSourceBuilder sourceBuilder, Map<String, Object> conditionMap, Field field) {
         @SuppressWarnings("unchecked")
         List<String> list = (List<String>) conditionMap.get(field.getName());
         if (CollectionUtils.isNotEmpty(list)) {
@@ -672,7 +677,7 @@ public final class DocOperator {
         }
     }
 
-    private static void filedSortBuild(SearchSourceBuilder sourceBuilder, Map<String, Object> dataMap, Field field) {
+    private void filedSortBuild(SearchSourceBuilder sourceBuilder, Map<String, Object> dataMap, Field field) {
         FiledSort sortAnnotation;
         FiledSortDto sortDto;
         sortAnnotation = field.getAnnotation(FiledSort.class);
@@ -681,14 +686,14 @@ public final class DocOperator {
         appendSort(sourceBuilder, sortDto);
     }
 
-    private static void nestedSearchBuild(BoolQueryBuilder boolQueryBuilder, String path, Map<String, Object> dataMap, Field field) {
+    private void nestedSearchBuild(BoolQueryBuilder boolQueryBuilder, String path, Map<String, Object> dataMap, Field field) {
         NestedSearch nestedAnnotation;
         nestedAnnotation = field.getAnnotation(NestedSearch.class);
         FiledDto filedDto = nestedSearchFiledDto(path, nestedAnnotation, field);
         appendField(filedDto, boolQueryBuilder, dataMap.get(field.getName()));
     }
 
-    private static FiledDto nestedSearchFiledDto(String path, NestedSearch nestedAnnotation, Field field) {
+    private FiledDto nestedSearchFiledDto(String path, NestedSearch nestedAnnotation, Field field) {
         FiledDto filedDto = new FiledDto();
         filedDto.setPath(buildPath(path, nestedAnnotation, field));
         filedDto.setType(NestedSearch.class);
@@ -698,7 +703,7 @@ public final class DocOperator {
         return filedDto;
     }
 
-    private static String buildPath(String path, NestedSearch nestedAnnotation, Field field) {
+    private String buildPath(String path, NestedSearch nestedAnnotation, Field field) {
         String pathSuffix = StringUtils.isNotBlank(nestedAnnotation.path()) ?
                 nestedAnnotation.path() : CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, field.getName());
         if (StringUtils.isBlank(path)) {
@@ -707,16 +712,15 @@ public final class DocOperator {
         return path + "." + pathSuffix;
     }
 
-    private static void filedSearchBuild(BoolQueryBuilder boolQueryBuilder, String path, Map<String, Object> conditionMap, Field field) {
+    private void filedSearchBuild(BoolQueryBuilder boolQueryBuilder, String path, Map<String, Object> conditionMap, Field field) {
         FiledSearch fieldAnnotation = field.getAnnotation(FiledSearch.class);
         FiledDto filedDto = filedSearchFiledDto(path, conditionMap, fieldAnnotation, field);
         Object fileValue = conditionMap.get(field.getName());
         appendField(filedDto, boolQueryBuilder, fileValue);
     }
 
-    private static FiledDto filedSearchFiledDto(String path, Map dataMap, FiledSearch fieldAnnotation, Field field) {
+    private FiledDto filedSearchFiledDto(String path, Map dataMap, FiledSearch fieldAnnotation, Field field) {
         return new FiledDto(field.getType(), fieldAnnotation.model(), fieldAnnotation.method(),
-                fieldAnnotation.matchOperator(), fieldAnnotation.multiMatchType(),
                 fieldAnnotation.key(), field.getName(), dataMap.get(field.getName()), fieldAnnotation.combined(),
                 fieldAnnotation.exists(), path, field.getDeclaringClass());
     }
@@ -727,7 +731,7 @@ public final class DocOperator {
      * @param filedDto         数据字段
      * @param boolQueryBuilder 查询条件
      */
-    private static void appendField(FiledDto filedDto, BoolQueryBuilder boolQueryBuilder, Object o) {
+    private void appendField(FiledDto filedDto, BoolQueryBuilder boolQueryBuilder, Object o) {
         QueryBuilder queryBuilder;
         if (StringUtils.isNotBlank(filedDto.getPath()) && filedDto.getType().equals(NestedSearch.class)) {
             queryBuilder = new NestedQueryBuilder(filedDto.getPath(), getQueryBuilder(filedDto, o), ScoreMode.None);
@@ -737,7 +741,7 @@ public final class DocOperator {
         appendBuilder(filedDto, boolQueryBuilder, queryBuilder);
     }
 
-    private static void appendBuilder(FiledDto filedDto, BoolQueryBuilder boolQueryBuilder, QueryBuilder queryBuilder) {
+    private void appendBuilder(FiledDto filedDto, BoolQueryBuilder boolQueryBuilder, QueryBuilder queryBuilder) {
         switch (filedDto.getMethod()) {
             case MUST:
                 boolQueryBuilder.must(queryBuilder);
@@ -754,7 +758,7 @@ public final class DocOperator {
         }
     }
 
-    private static QueryBuilder getQueryBuilder(FiledDto dto, Object o) {
+    private QueryBuilder getQueryBuilder(FiledDto dto, Object o) {
         String field = dto.queryField();
 
         if (dto.getType() == String.class) {
@@ -810,7 +814,7 @@ public final class DocOperator {
         return QueryBuilders.termQuery(field, dto.getValue());
     }
 
-    private static RangeQueryBuilder rangeQueryBuilder(FiledDto dto, String field) {
+    private RangeQueryBuilder rangeQueryBuilder(FiledDto dto, String field) {
         RangeQuery rangeQuery = (RangeQuery) dto.getValue();
         RangeQueryBuilder rangeQueryBuilder = QueryBuilders.rangeQuery(field);
 
@@ -829,7 +833,7 @@ public final class DocOperator {
         return rangeQueryBuilder;
     }
 
-    private static QueryBuilder matchModelHandle(FiledDto dto, String field) {
+    private QueryBuilder matchModelHandle(FiledDto dto, String field) {
         if (dto.getModel() == FiledSearch.Model.LIKE) {
             return QueryBuilders.queryStringQuery("*" + dto.getValue() + "*").defaultField(field);
         }
@@ -843,13 +847,11 @@ public final class DocOperator {
         }
 
         if (dto.getModel() == FiledSearch.Model.MATCH) {
-            return matchQuery(field, dto.getValue()).operator(dto.getMatchOperator());
+            return QueryBuilders.matchQuery(field, dto.getValue());
         }
 
         if (dto.getModel() == FiledSearch.Model.MULTI_MATCH) {
-            return QueryBuilders.multiMatchQuery(dto.getValue(), field.split(","))
-                                .type(dto.getMultiMatchType())
-                                .operator(dto.getMatchOperator());
+            return QueryBuilders.multiMatchQuery(dto.getValue(), field.split(","));
         }
 
         return QueryBuilders.termQuery(field, dto.getValue());

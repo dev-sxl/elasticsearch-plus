@@ -1,6 +1,6 @@
 package com.zyx.elasticsearchplus.sample;
 
-import com.xyz.elasticsearchplus.starter.annotation.EnableElasticsearchPlus;
+import com.zyx.elasticsearchplus.operator6.annotation.EnableElasticsearchPlus;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;

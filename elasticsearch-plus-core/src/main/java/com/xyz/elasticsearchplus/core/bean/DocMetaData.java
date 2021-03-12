@@ -18,6 +18,9 @@ public class DocMetaData<T> {
 
     private Class<T> docType;
 
+    /**
+     * id source field name
+     */
     private String idSourceName;
 
     public static <T> Builder<T> builder() {

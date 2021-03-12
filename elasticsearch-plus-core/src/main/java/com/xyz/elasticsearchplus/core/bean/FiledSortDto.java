@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.search.sort.SortOrder;
 
+
 /**
  * @author xuli
  * @version 2019/11/21
@@ -19,4 +20,5 @@ public class FiledSortDto {
     private String fieldName;
     private DistanceUnit unit;
     private Object value;
+
 }

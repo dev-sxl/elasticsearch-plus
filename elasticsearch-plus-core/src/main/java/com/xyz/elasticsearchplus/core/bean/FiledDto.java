@@ -6,8 +6,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.elasticsearch.index.query.MultiMatchQueryBuilder;
-import org.elasticsearch.index.query.Operator;
 
 /**
  * @author xuli
@@ -20,8 +18,6 @@ public class FiledDto {
     private Class type;
     private FiledSearch.Model model;
     private FiledSearch.Method method;
-    private Operator matchOperator;
-    private MultiMatchQueryBuilder.Type multiMatchType;
     private String key;
     private String fieldName;
     private Object value;

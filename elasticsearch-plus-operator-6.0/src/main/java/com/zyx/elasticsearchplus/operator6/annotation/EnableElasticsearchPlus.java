@@ -1,6 +1,6 @@
-package com.xyz.elasticsearchplus.starter.annotation;
+package com.zyx.elasticsearchplus.operator6.annotation;
 
-import com.xyz.elasticsearchplus.starter.config.AutoConfig;
+import com.zyx.elasticsearchplus.operator6.config.AutoConfig;
 import org.springframework.context.annotation.Import;
 
 import java.lang.annotation.*;

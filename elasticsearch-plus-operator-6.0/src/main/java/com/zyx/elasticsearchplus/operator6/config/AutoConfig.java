@@ -1,6 +1,7 @@
-package com.xyz.elasticsearchplus.starter.config;
+package com.zyx.elasticsearchplus.operator6.config;
 
-import com.xyz.elasticsearchplus.core.operator.DocOperator;
+import com.xyz.elasticsearchplus.core.operator.OperatorFactory;
+import com.zyx.elasticsearchplus.operator6.impl.DocOperator;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
@@ -32,8 +33,7 @@ public class AutoConfig {
                                               .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
         RestHighLevelClient client = new RestHighLevelClient(builder);
         // init DocOperator
-        DocOperator.init(client);
-
+        OperatorFactory.init(new DocOperator(client));
         return client;
     }
 
