@@ -4,10 +4,12 @@ import com.xyz.elasticsearchplus.core.bean.DocMetaData;
 import com.xyz.elasticsearchplus.core.bean.PageParam;
 import com.xyz.elasticsearchplus.core.bean.PageResult;
 import com.xyz.elasticsearchplus.core.operator.IDocOperator;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -15,6 +17,16 @@ import java.util.Optional;
  * @since 2021/3/12 16:40
  */
 public class DocOperator implements IDocOperator {
+
+    private RestHighLevelClient highLevelClient;
+
+    public DocOperator(RestHighLevelClient highLevelClient) {
+        this.highLevelClient = Objects.requireNonNull(highLevelClient);
+    }
+
+    public RestHighLevelClient highLevelClient() {
+        return highLevelClient;
+    }
 
     @Override
     public <T> Optional<T> getById(DocMetaData<T> docMetaData, String id) {

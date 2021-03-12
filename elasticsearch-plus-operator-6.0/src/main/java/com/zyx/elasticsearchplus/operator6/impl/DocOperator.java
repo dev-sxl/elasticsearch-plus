@@ -69,8 +69,6 @@ public final class DocOperator implements IDocOperator {
 
     private RestHighLevelClient highLevelClient;
 
-    private volatile boolean hasInit = false;
-
     public DocOperator(RestHighLevelClient highLevelClient) {
         this.highLevelClient = Objects.requireNonNull(highLevelClient);
     }
