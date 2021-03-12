@@ -18,7 +18,7 @@ import java.util.Optional;
  */
 public class DocOperator implements IDocOperator {
 
-    private RestHighLevelClient highLevelClient;
+    private final RestHighLevelClient highLevelClient;
 
     public DocOperator(RestHighLevelClient highLevelClient) {
         this.highLevelClient = Objects.requireNonNull(highLevelClient);

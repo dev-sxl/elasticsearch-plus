@@ -67,7 +67,7 @@ public final class DocOperator implements IDocOperator {
      */
     private final int LIMIT = 1000;
 
-    private RestHighLevelClient highLevelClient;
+    private final RestHighLevelClient highLevelClient;
 
     public DocOperator(RestHighLevelClient highLevelClient) {
         this.highLevelClient = Objects.requireNonNull(highLevelClient);
